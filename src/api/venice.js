@@ -26,6 +26,10 @@ export async function fetchBalance(apiKey) {
     const diem = response.headers.get("x-venice-balance-diem");
     const vcu = response.headers.get("x-venice-balance-vcu");
 
+    if (!usd && !diem && !vcu) {
+      return { usd: null, diem: null, vcu: null, error: "No balance data - requires admin API key" };
+    }
+
     return { usd, diem, vcu, error: null };
   } catch {
     return { usd: null, diem: null, vcu: null, error: "Network error" };

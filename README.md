@@ -102,6 +102,8 @@ The app makes a GET request to `https://api.venice.ai/api/v1/models` with your A
 4. Generate a new API key
 5. Copy and paste it into this tracker
 
+> **Important**: Balance information is only available with **admin/account API keys**. Regular inference-only keys can make API calls but won't return balance headers. If you see "No balance data - requires admin API key", you need to use a key with higher permissions.
+
 ## License
 
 MIT
