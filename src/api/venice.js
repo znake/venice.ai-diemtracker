@@ -4,7 +4,9 @@ export async function fetchBalance(apiKey) {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
+        "Cache-Control": "no-cache",
       },
+      cache: "no-store",
     });
 
     if (response.status === 401) {
@@ -15,7 +17,8 @@ export async function fetchBalance(apiKey) {
       return { usd: null, diem: null, vcu: null, error: "Rate limit exceeded" };
     }
 
-    if (!response.ok) {
+    // 304 Not Modified is technically not "ok" but is a valid response
+    if (!response.ok && response.status !== 304) {
       return { usd: null, diem: null, vcu: null, error: `HTTP error! status: ${response.status}` };
     }
 
@@ -24,7 +27,7 @@ export async function fetchBalance(apiKey) {
     const vcu = response.headers.get("x-venice-balance-vcu");
 
     return { usd, diem, vcu, error: null };
-  } catch (err) {
+  } catch {
     return { usd: null, diem: null, vcu: null, error: "Network error" };
   }
 }
