@@ -195,27 +195,27 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30 selection:text-emerald-200">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+        <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between mb-12">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+            <h1 className="text-3xl font-black tracking-tighter text-white sm:text-4xl lg:text-5xl bg-gradient-to-br from-white to-zinc-500 bg-clip-text text-transparent">
               Venice Balance Tracker
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+            <p className="mt-3 max-w-2xl text-sm sm:text-base text-zinc-400 leading-relaxed">
               Track USD/DIEM/VCU balances across multiple API keys with automatic refresh.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={refreshAll}
               disabled={!keys.length || isRefreshing}
-              className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all
+              className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-all duration-200
                 ${!keys.length || isRefreshing
-                  ? 'cursor-not-allowed border-white/10 bg-white/5 text-zinc-500'
-                  : 'border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10'
+                  ? 'cursor-not-allowed border-white/5 bg-white/5 text-zinc-600'
+                  : 'border-white/10 bg-zinc-900 text-zinc-300 hover:border-white/20 hover:bg-zinc-800 hover:text-white active:scale-95'
                 }`}
               title={!keys.length ? 'Add a key to refresh' : 'Refresh all keys'}
             >
@@ -240,35 +240,40 @@ function App() {
                 setEditingKey(null);
                 setShowForm(true);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-extrabold text-zinc-950 transition-all hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:bg-emerald-400 hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             >
-              <span className="text-base leading-none">+</span>
+              <span className="text-lg leading-none font-black">+</span>
               Add Key
             </button>
           </div>
         </header>
 
-        <main className="mt-10">
+        <main className="mt-8 sm:mt-12">
           {!keys.length ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
-              <div className="mx-auto max-w-md">
-                <p className="text-sm font-semibold text-zinc-200">
-                  No API keys yet. Add one to get started.
-                </p>
-                <p className="mt-2 text-sm text-zinc-500">
-                  Your keys are stored locally in your browser.
+            <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center sm:p-16">
+              <div className="mx-auto max-w-md flex flex-col items-center">
+                <div className="mb-4 rounded-full bg-zinc-900 p-4 ring-1 ring-white/10">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-zinc-500">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-zinc-100">
+                  No API keys yet
+                </h3>
+                <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
+                  Add your Venice API key to start tracking your balances. Your keys are stored locally in your browser.
                 </p>
                 <button
                   type="button"
                   onClick={() => setShowForm(true)}
-                  className="mt-6 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-bold text-zinc-950 transition-colors hover:bg-zinc-100"
+                  className="mt-8 inline-flex items-center justify-center rounded-lg bg-zinc-100 px-6 py-2.5 text-sm font-bold text-zinc-900 transition-all hover:bg-white hover:scale-105 active:scale-95"
                 >
                   Add your first key
                 </button>
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
               {sortedKeys.map((keyData) => (
                 <KeyCard
                   key={keyData.id}
@@ -293,6 +298,7 @@ function App() {
           />
           <div className="relative z-10 w-full max-w-md">
             <KeyForm
+              key={editingKey ? editingKey.id : 'new'}
               initialData={editingKey}
               onSubmit={handleFormSubmit}
               onCancel={resetFormState}

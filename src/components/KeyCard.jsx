@@ -19,14 +19,14 @@ const KeyCard = ({ keyData, onEdit, onDelete, onRefresh }) => {
   const hasError = balance?.error;
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0a] p-5 transition-all hover:border-white/20 hover:shadow-lg hover:shadow-black/50">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+    <div className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 transition-all duration-300 hover:border-zinc-700 hover:bg-zinc-900 hover:shadow-xl hover:shadow-black/50 hover:-translate-y-1">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
       <div className="relative z-10 mb-4 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-bold tracking-tight text-white">{label}</h3>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="font-mono text-xs text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
+          <h3 className="text-lg font-bold tracking-tight text-zinc-100 group-hover:text-white transition-colors">{label}</h3>
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="font-mono text-[10px] tracking-wider text-zinc-500 bg-zinc-950/50 px-2 py-1 rounded border border-zinc-800/50 group-hover:border-zinc-700 transition-colors">
               {maskedKey}
             </span>
           </div>
@@ -55,9 +55,9 @@ const KeyCard = ({ keyData, onEdit, onDelete, onRefresh }) => {
         </div>
       </div>
 
-      <div className="relative z-10 grid grid-cols-3 gap-4 border-t border-white/5 py-4">
+      <div className="relative z-10 grid grid-cols-3 gap-2 sm:gap-4 border-t border-zinc-800/50 py-5 mt-1">
         {hasError ? (
-          <div className="col-span-3 flex items-center justify-center rounded bg-red-900/10 py-3 text-sm text-red-400 border border-red-900/20">
+          <div className="col-span-3 flex items-center justify-center rounded-lg bg-red-500/5 py-4 text-sm font-medium text-red-400 border border-red-500/10">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="mr-2 w-4 h-4">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
@@ -66,22 +66,22 @@ const KeyCard = ({ keyData, onEdit, onDelete, onRefresh }) => {
         ) : (
           <>
             <div className="flex flex-col">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">USD Balance</span>
-              <span className={`mt-1 font-mono text-xl font-semibold tracking-tight ${isLoading ? 'animate-pulse text-zinc-600' : 'text-emerald-400'}`}>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">USD</span>
+              <span className={`mt-1 font-mono text-lg sm:text-xl font-bold tracking-tight ${isLoading ? 'animate-pulse text-zinc-700' : 'text-emerald-400'}`}>
                 {isLoading ? '---' : `$${formatValue(balance?.usd)}`}
               </span>
             </div>
 
-            <div className="flex flex-col border-l border-white/5 pl-4">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">DIEM</span>
-              <span className={`mt-1 font-mono text-xl font-semibold tracking-tight ${isLoading ? 'animate-pulse text-zinc-600' : 'text-blue-400'}`}>
+            <div className="flex flex-col border-l border-zinc-800/50 pl-2 sm:pl-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">DIEM</span>
+              <span className={`mt-1 font-mono text-lg sm:text-xl font-bold tracking-tight ${isLoading ? 'animate-pulse text-zinc-700' : 'text-blue-400'}`}>
                 {isLoading ? '---' : formatValue(balance?.diem)}
               </span>
             </div>
 
-            <div className="flex flex-col border-l border-white/5 pl-4">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">VCU</span>
-              <span className={`mt-1 font-mono text-xl font-semibold tracking-tight ${isLoading ? 'animate-pulse text-zinc-600' : 'text-purple-400'}`}>
+            <div className="flex flex-col border-l border-zinc-800/50 pl-2 sm:pl-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">VCU</span>
+              <span className={`mt-1 font-mono text-lg sm:text-xl font-bold tracking-tight ${isLoading ? 'animate-pulse text-zinc-700' : 'text-purple-400'}`}>
                 {isLoading ? '---' : formatValue(balance?.vcu)}
               </span>
             </div>
@@ -89,32 +89,32 @@ const KeyCard = ({ keyData, onEdit, onDelete, onRefresh }) => {
         )}
       </div>
 
-      <div className="relative z-10 mt-2 flex items-center justify-between border-t border-white/5 pt-3">
-        <div className="flex items-center gap-1.5">
-          <div className={`h-1.5 w-1.5 rounded-full ${isLoading ? 'bg-yellow-500 animate-pulse' : hasError ? 'bg-red-500' : 'bg-emerald-500/50'}`}></div>
-          <span className="text-[10px] text-zinc-600">
-            Updated: {formattedDate}
+      <div className="relative z-10 mt-1 flex items-center justify-between border-t border-zinc-800/50 pt-3">
+        <div className="flex items-center gap-2">
+          <div className={`h-1.5 w-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] ${isLoading ? 'bg-yellow-500 animate-pulse shadow-yellow-500/50' : hasError ? 'bg-red-500 shadow-red-500/50' : 'bg-emerald-500 shadow-emerald-500/50'}`}></div>
+          <span className="text-[10px] font-medium text-zinc-600">
+            {isLoading ? 'Syncing...' : `Updated ${formattedDate}`}
           </span>
         </div>
 
         <button
           onClick={() => onRefresh(id)}
           disabled={isLoading}
-          className={`group/refresh flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-all
+          className={`group/refresh flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-all
             ${isLoading 
               ? 'cursor-not-allowed text-zinc-600' 
-              : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+              : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
             }`}
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
             viewBox="0 0 20 20" 
             fill="currentColor" 
-            className={`w-3.5 h-3.5 transition-transform ${isLoading ? 'animate-spin' : 'group-hover/refresh:rotate-180'}`}
+            className={`w-3 h-3 transition-transform ${isLoading ? 'animate-spin' : 'group-hover/refresh:rotate-180'}`}
           >
             <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />
           </svg>
-          {isLoading ? 'Syncing...' : 'Refresh'}
+          {isLoading ? 'Syncing' : 'Refresh'}
         </button>
       </div>
     </div>

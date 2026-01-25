@@ -1,20 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
-  const [label, setLabel] = useState('');
-  const [apiKey, setApiKey] = useState('');
+  const [label, setLabel] = useState(initialData?.label || '');
+  const [apiKey, setApiKey] = useState(initialData?.apiKey || '');
   const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (initialData) {
-      setLabel(initialData.label || '');
-      setApiKey(initialData.apiKey || '');
-    } else {
-      setLabel('');
-      setApiKey('');
-    }
-  }, [initialData]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -36,10 +26,10 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
   const isEditMode = !!initialData;
 
   return (
-    <form onSubmit={handleSubmit} className="bg-zinc-900 border border-zinc-800 p-6 shadow-2xl max-w-md w-full relative overflow-hidden group">
-      <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-emerald-500/20 to-transparent -mr-8 -mt-8 rotate-45 pointer-events-none" />
+    <form onSubmit={handleSubmit} className="bg-zinc-900 border border-zinc-800 p-8 shadow-2xl max-w-md w-full relative overflow-hidden group rounded-2xl">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent -mr-10 -mt-10 rounded-full blur-2xl pointer-events-none" />
 
-      <h2 className="text-xl font-bold text-zinc-100 mb-6 tracking-tight">
+      <h2 className="text-2xl font-black text-zinc-100 mb-8 tracking-tighter">
         {isEditMode ? 'Edit API Key' : 'Add New Key'}
       </h2>
 
@@ -53,7 +43,7 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
             id="label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-3 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all duration-200 placeholder-zinc-700"
+            className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-3.5 rounded-lg focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 placeholder-zinc-700"
             placeholder="e.g. Production, Staging"
           />
         </div>
@@ -68,7 +58,7 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
               id="apiKey"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-3 pr-12 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all duration-200 placeholder-zinc-700 font-mono text-sm"
+              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-3.5 pr-12 rounded-lg focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 placeholder-zinc-700 font-mono text-sm"
               placeholder="sk-..."
             />
             <button
@@ -103,7 +93,7 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
         <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"
-            className="flex-1 bg-zinc-100 hover:bg-white text-zinc-900 font-bold py-3 px-4 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:ring-zinc-100"
+            className="flex-1 bg-zinc-100 hover:bg-white text-zinc-900 font-bold py-3.5 px-4 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:ring-zinc-100 hover:scale-[1.02] active:scale-[0.98]"
           >
             {isEditMode ? 'Save Changes' : 'Add Key'}
           </button>
@@ -112,7 +102,7 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-3 text-zinc-400 hover:text-zinc-200 font-medium transition-colors duration-200 focus:outline-none focus:text-zinc-100"
+              className="px-4 py-3.5 text-zinc-400 hover:text-zinc-200 font-medium transition-colors duration-200 focus:outline-none focus:text-zinc-100"
             >
               Cancel
             </button>
