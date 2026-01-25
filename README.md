@@ -4,6 +4,8 @@ A sleek, dark-themed React SPA to monitor your Venice AI API balances (USD, DIEM
 
 ![Venice Balance Tracker](https://img.shields.io/badge/React-19-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4) ![Vite](https://img.shields.io/badge/Vite-7-646CFF)
 
+![Screenshot](./public/screenshot.png)
+
 ## Features
 
 - **Multi-Key Support** - Track balances for multiple Venice API keys simultaneously
@@ -19,7 +21,7 @@ A sleek, dark-themed React SPA to monitor your Venice AI API balances (USD, DIEM
 - **DIEM** - Venice's token currency
 - **VCU** - Venice Compute Units
 
-This tracker fetches your balances from the Venice API response headers.
+This tracker fetches your balances from the Venice API.
 
 ## Quick Start
 
@@ -73,11 +75,18 @@ The built files will be in the `dist/` folder.
 
 ## How It Works
 
-The app makes a GET request to `https://api.venice.ai/api/v1/models` with your API key in the Authorization header. Venice returns your balance information in response headers:
+The app makes a GET request to `https://api.venice.ai/api/v1/api_keys/rate_limits` with your API key in the Authorization header. Venice returns your balance information in the JSON response:
 
-- `x-venice-balance-usd` - USD balance
-- `x-venice-balance-diem` - DIEM balance  
-- `x-venice-balance-vcu` - VCU balance
+```json
+{
+  "data": {
+    "balances": {
+      "USD": 50.23,
+      "DIEM": 100.02
+    }
+  }
+}
+```
 
 ## Security
 
@@ -102,7 +111,7 @@ The app makes a GET request to `https://api.venice.ai/api/v1/models` with your A
 4. Generate a new API key
 5. Copy and paste it into this tracker
 
-> **Important**: Balance information is only available with **admin/account API keys**. Regular inference-only keys can make API calls but won't return balance headers. If you see "No balance data - requires admin API key", you need to use a key with higher permissions.
+> **Important**: Balance information is available with any valid API key. If you see "No balance data in response", the API key may not have the required permissions.
 
 ## License
 
