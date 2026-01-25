@@ -13,6 +13,7 @@ A sleek, dark-themed React SPA to monitor your Venice AI API balances (USD, DIEM
 - **Local Storage** - Keys are stored securely in your browser (never sent to any server except Venice API)
 - **Dark Theme** - Easy on the eyes with a modern zinc/emerald color scheme
 - **Responsive Design** - Works on desktop, tablet, and mobile
+- **PWA Ready** - Install on your phone for native app experience
 
 ## What is Venice.ai?
 
@@ -54,6 +55,79 @@ npm run preview
 ```
 
 The built files will be in the `dist/` folder.
+
+## Deployment
+
+This app is a static SPA that can be deployed anywhere. Choose your preferred method:
+
+### Docker (VPS / Self-Hosted)
+
+Deploy on any VPS (Hetzner, DigitalOcean, etc.) using Docker:
+
+```bash
+# Build the image
+docker build -t venice-tracker .
+
+# Run the container
+docker run -d -p 80:80 venice-tracker
+```
+
+Or use Docker Compose:
+
+```yaml
+# docker-compose.yml
+services:
+  venice-tracker:
+    build: .
+    ports:
+      - "80:80"
+    restart: unless-stopped
+```
+
+```bash
+docker compose up -d
+```
+
+### Vercel
+
+1. Fork this repository
+2. Go to [vercel.com](https://vercel.com) and import your fork
+3. Vercel auto-detects Vite — just click Deploy
+
+Or via CLI:
+
+```bash
+npm i -g vercel
+vercel
+```
+
+### Netlify
+
+1. Connect your repo at [netlify.com](https://netlify.com)
+2. Build command: `npm run build`
+3. Publish directory: `dist`
+
+### Cloudflare Pages
+
+1. Connect your repo in Cloudflare Dashboard
+2. Build command: `npm run build`
+3. Build output directory: `dist`
+
+## PWA Support
+
+The app works as a **Progressive Web App** — install it on your smartphone for quick access to your balances:
+
+### iOS (Safari)
+1. Open the deployed app in Safari
+2. Tap the Share button
+3. Select **"Add to Home Screen"**
+
+### Android (Chrome)
+1. Open the deployed app in Chrome
+2. Tap the menu (⋮)
+3. Select **"Add to Home Screen"** or **"Install App"**
+
+Once installed, the app opens in standalone mode (no browser UI) and feels like a native app. Your API keys stay synced in local storage.
 
 ## Usage
 
