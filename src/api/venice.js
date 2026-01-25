@@ -1,12 +1,11 @@
 export async function fetchBalance(apiKey) {
   try {
-    const response = await fetch("https://api.venice.ai/api/v1/models", {
+    const response = await fetch("https://api.venice.ai/api/v1/api_keys/rate_limits", {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
-        "Cache-Control": "no-cache",
+        "Content-Type": "application/json",
       },
-      cache: "no-store",
     });
 
     if (response.status === 401) {
@@ -17,20 +16,25 @@ export async function fetchBalance(apiKey) {
       return { usd: null, diem: null, vcu: null, error: "Rate limit exceeded" };
     }
 
-    // 304 Not Modified is technically not "ok" but is a valid response
-    if (!response.ok && response.status !== 304) {
+    if (!response.ok) {
       return { usd: null, diem: null, vcu: null, error: `HTTP error! status: ${response.status}` };
     }
 
-    const usd = response.headers.get("x-venice-balance-usd");
-    const diem = response.headers.get("x-venice-balance-diem");
-    const vcu = response.headers.get("x-venice-balance-vcu");
+    const json = await response.json();
+    const balances = json?.data?.balances;
 
-    if (!usd && !diem && !vcu) {
-      return { usd: null, diem: null, vcu: null, error: "No balance data - requires admin API key" };
+    if (!balances) {
+      return { usd: null, diem: null, vcu: null, error: "No balance data in response" };
     }
 
-    return { usd, diem, vcu, error: null };
+    const formatBalance = (val) => val != null ? Number(val).toFixed(2) : null;
+
+    return {
+      usd: formatBalance(balances.USD),
+      diem: formatBalance(balances.DIEM),
+      vcu: formatBalance(balances.VCU),
+      error: null,
+    };
   } catch {
     return { usd: null, diem: null, vcu: null, error: "Network error" };
   }
