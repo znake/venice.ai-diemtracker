@@ -1,0 +1,17 @@
+{
+  "name": "Venice Balance Tracker",
+  "short_name": "Venice Tracker",
+  "description": "Track USD/DIEM/VCU balances across multiple Venice API keys",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
