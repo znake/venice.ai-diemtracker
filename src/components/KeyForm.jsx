@@ -64,7 +64,7 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
             <button
               type="button"
               onClick={() => setShowKey(!showKey)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors p-1"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 text-zinc-500 hover:text-zinc-300 active:text-zinc-200 transition-colors rounded-lg"
               aria-label={showKey ? "Hide API Key" : "Show API Key"}
             >
               {showKey ? (

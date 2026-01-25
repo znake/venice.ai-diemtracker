@@ -212,7 +212,7 @@ function App() {
               type="button"
               onClick={refreshAll}
               disabled={!keys.length || isRefreshing}
-              className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-all duration-200
+              className={`inline-flex items-center justify-center gap-2 rounded-lg border min-h-[44px] px-4 py-3 text-sm font-semibold transition-all duration-200
                 ${!keys.length || isRefreshing
                   ? 'cursor-not-allowed border-white/5 bg-white/5 text-zinc-600'
                   : 'border-white/10 bg-zinc-900 text-zinc-300 hover:border-white/20 hover:bg-zinc-800 hover:text-white active:scale-95'
@@ -240,7 +240,7 @@ function App() {
                 setEditingKey(null);
                 setShowForm(true);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:bg-emerald-400 hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 min-h-[44px] px-5 py-3 text-sm font-bold text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:bg-emerald-400 hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             >
               <span className="text-lg leading-none font-black">+</span>
               Add Key
