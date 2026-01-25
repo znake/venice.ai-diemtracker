@@ -178,7 +178,7 @@ Task 9 (README)
 
 ---
 
-- [ ] 1. useLocalStorage Custom Hook
+- [x] 1. useLocalStorage Custom Hook
 
   **What to do**:
   - Hook erstellen in `src/hooks/useLocalStorage.js`
@@ -216,7 +216,7 @@ Task 9 (README)
 
 ---
 
-- [ ] 2. useInterval Custom Hook
+- [x] 2. useInterval Custom Hook
 
   **What to do**:
   - Hook erstellen in `src/hooks/useInterval.js`
@@ -252,7 +252,7 @@ Task 9 (README)
 
 ---
 
-- [ ] 3. Venice API Fetch Logic
+- [x] 3. Venice API Fetch Logic
 
   **What to do**:
   - Funktion erstellen in `src/api/venice.js`
@@ -301,7 +301,7 @@ Task 9 (README)
 
 ---
 
-- [ ] 4. KeyCard Component
+- [x] 4. KeyCard Component
 
   **What to do**:
   - Component erstellen in `src/components/KeyCard.jsx`
@@ -340,7 +340,7 @@ Task 9 (README)
 
 ---
 
-- [ ] 5. KeyForm Component
+- [x] 5. KeyForm Component
 
   **What to do**:
   - Component erstellen in `src/components/KeyForm.jsx`
@@ -377,7 +377,7 @@ Task 9 (README)
 
 ---
 
-- [ ] 6. App Integration
+- [x] 6. App Integration
 
   **What to do**:
   - `src/App.jsx` komplett implementieren
