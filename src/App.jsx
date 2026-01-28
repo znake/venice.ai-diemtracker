@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import useLocalStorage from './hooks/useLocalStorage';
 import useInterval from './hooks/useInterval';
@@ -105,6 +105,14 @@ function App() {
     },
     keys.length ? AUTO_REFRESH_MS : null
   );
+
+  // Initial refresh on mount when keys exist
+  useEffect(() => {
+    if (keys.length > 0) {
+      refreshAll();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addKey = useCallback(
     async ({ label, apiKey }) => {
