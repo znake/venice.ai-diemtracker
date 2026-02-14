@@ -66,8 +66,6 @@ export async function fetchUsage(apiKey, { currency = "DIEM", days = 7, limit = 
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - days);
 
-    const formatDate = (date) => date.toISOString().slice(0, 10);
-
     const allUsage = [];
     let page = 1;
     let hasMore = true;
@@ -76,8 +74,8 @@ export async function fetchUsage(apiKey, { currency = "DIEM", days = 7, limit = 
     while (hasMore && page <= maxPages) {
       const params = new URLSearchParams({
         currency,
-        start_date: formatDate(startDate),
-        end_date: formatDate(endDate),
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
         limit: String(limit),
         page: String(page),
       });
