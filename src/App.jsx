@@ -1,13 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useLocalStorage from './hooks/useLocalStorage';
 import useInterval from './hooks/useInterval';
-import { fetchBalance } from './api/venice';
+import { aggregateUsage, fetchBalance, fetchRateLimits, fetchUsage } from './api/venice';
 import KeyCard from './components/KeyCard';
 import KeyForm from './components/KeyForm';
+import UsageDashboard from './components/UsageDashboard';
 
 const STORAGE_KEY = 'venice-keys';
 const AUTO_REFRESH_MS = 60_000;
+const DEFAULT_USAGE_DAYS = 7;
+
+const PERIOD_OPTIONS = [
+  { label: 'Last 7 days', value: 7 },
+  { label: 'Last 30 days', value: 30 },
+  { label: 'Last 90 days', value: 90 },
+];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -16,6 +24,20 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
+  const [usagePeriodDays, setUsagePeriodDays] = useState(DEFAULT_USAGE_DAYS);
+  const [usageState, setUsageState] = useState({
+    isLoading: false,
+    error: null,
+    summary: {
+      totalCost: 0,
+      totalTokens: 0,
+      totalRequests: 0,
+      lastUpdated: null,
+      nextEpoch: null,
+    },
+    perModel: [],
+    dailySeries: [],
+  });
 
   const isFormOpen = showForm || !!editingKey;
 
@@ -106,6 +128,74 @@ function App() {
     keys.length ? AUTO_REFRESH_MS : null
   );
 
+  const usageLoadingRef = useRef(false);
+
+  const refreshUsage = useCallback(
+    async (periodOverride = null) => {
+      if (!keys.length) return;
+      if (usageLoadingRef.current) return;
+
+      const primaryKey = keys[0]?.apiKey;
+      if (!primaryKey) return;
+
+      usageLoadingRef.current = true;
+      const periodDays = periodOverride ?? usagePeriodDays;
+      setUsageState((prev) => ({
+        ...prev,
+        isLoading: true,
+        error: null,
+      }));
+
+      try {
+        const combinedUsage = [];
+        let errorMessage = null;
+        let totalRecords = 0;
+
+        for (const key of keys) {
+          if (!key.apiKey) continue;
+          const usageResult = await fetchUsage(key.apiKey, {
+            days: periodDays,
+            currency: 'DIEM',
+            limit: 200,
+          });
+
+          if (usageResult.error && !errorMessage) {
+            errorMessage = `${key.label || 'Key'}: ${usageResult.error}`;
+          }
+
+          combinedUsage.push(...usageResult.usage);
+          if (usageResult.totalRecords != null) {
+            totalRecords += usageResult.totalRecords;
+          }
+          await sleep(150);
+        }
+
+        const rateResult = await fetchRateLimits(primaryKey);
+        if (rateResult.error && !errorMessage) {
+          errorMessage = rateResult.error;
+        }
+
+        const aggregated = aggregateUsage(combinedUsage);
+
+        setUsageState({
+          isLoading: false,
+          error: errorMessage,
+          summary: {
+            ...aggregated.summary,
+            nextEpoch: rateResult.nextEpoch,
+            fetchedRecords: combinedUsage.length,
+            totalRecords,
+          },
+          perModel: aggregated.perModel,
+          dailySeries: aggregated.dailySeries,
+        });
+      } finally {
+        usageLoadingRef.current = false;
+      }
+    },
+    [keys, usagePeriodDays]
+  );
+
   // Initial refresh on mount when keys exist
   useEffect(() => {
     if (keys.length > 0) {
@@ -113,6 +203,14 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (keys.length > 0) {
+      refreshUsage();
+    }
+    // Intentionally only re-run when key count or period changes, not on refreshUsage identity change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keys.length, usagePeriodDays]);
 
   const addKey = useCallback(
     async ({ label, apiKey }) => {
@@ -256,7 +354,7 @@ function App() {
           </div>
         </header>
 
-        <main className="mt-8 sm:mt-12">
+        <main className="mt-8 space-y-10 sm:mt-12">
           {!keys.length ? (
             <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center sm:p-16">
               <div className="mx-auto max-w-md flex flex-col items-center">
@@ -281,17 +379,30 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-              {sortedKeys.map((keyData) => (
-                <KeyCard
-                  key={keyData.id}
-                  keyData={keyData}
-                  onEdit={handleEdit}
-                  onDelete={deleteKey}
-                  onRefresh={refreshSingle}
-                />
-              ))}
-            </div>
+            <>
+              <UsageDashboard
+                periodOptions={PERIOD_OPTIONS}
+                periodDays={usagePeriodDays}
+                onPeriodChange={setUsagePeriodDays}
+                onRefresh={() => refreshUsage(usagePeriodDays)}
+                isLoading={usageState.isLoading}
+                error={usageState.error}
+                summary={usageState.summary}
+                perModel={usageState.perModel}
+                dailySeries={usageState.dailySeries}
+              />
+              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                {sortedKeys.map((keyData) => (
+                  <KeyCard
+                    key={keyData.id}
+                    keyData={keyData}
+                    onEdit={handleEdit}
+                    onDelete={deleteKey}
+                    onRefresh={refreshSingle}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </main>
       </div>
