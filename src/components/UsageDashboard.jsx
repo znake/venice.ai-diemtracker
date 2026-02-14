@@ -1,6 +1,4 @@
-import { useMemo, useState } from 'react';
-
-import useInterval from '../hooks/useInterval';
+import { useMemo } from 'react';
 
 const COLOR_PALETTE = [
   'bg-emerald-500',
@@ -28,22 +26,6 @@ const formatDateTime = (value) => {
   return Number.isNaN(date.getTime()) ? 'Never' : date.toLocaleString();
 };
 
-const getTimeLeft = (nextEpoch) => {
-  if (!nextEpoch) return null;
-  const target = new Date(nextEpoch);
-  if (Number.isNaN(target.getTime())) return null;
-  const diff = target.getTime() - Date.now();
-  if (diff <= 0) return { label: 'Now', isExpired: true };
-  const totalSeconds = Math.floor(diff / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return {
-    label: `${days}d ${hours}h ${minutes}m ${seconds}s`,
-    isExpired: false,
-  };
-};
 
 const SummaryCard = ({ label, value, sublabel, accent = 'text-emerald-400' }) => (
   <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-5">
@@ -57,58 +39,6 @@ const SummaryCard = ({ label, value, sublabel, accent = 'text-emerald-400' }) =>
   </div>
 );
 
-const UsageChart = ({ dailySeries, models, modelColors }) => {
-  if (!dailySeries.length || !models.length) {
-    return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-        <h3 className="text-sm font-bold text-zinc-100">Model usage over time</h3>
-        <p className="mt-3 text-sm text-zinc-500">No usage data available for this period.</p>
-      </div>
-    );
-  }
-
-  const maxTotal = dailySeries.reduce((max, day) => Math.max(max, day.total), 0) || 1;
-
-  return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-sm font-bold text-zinc-100">Model usage over time</h3>
-        <div className="flex flex-wrap gap-2">
-          {models.map((model) => (
-            <span key={model} className="flex items-center gap-2 text-[11px] text-zinc-400">
-              <span className={`h-2.5 w-2.5 rounded-full ${modelColors[model]}`} />
-              {model}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 overflow-x-auto">
-        <div className="flex items-end gap-3 min-w-[420px]">
-          {dailySeries.map((day) => (
-            <div key={day.date} className="flex flex-col items-center gap-2">
-              <div className="flex h-28 w-5 flex-col-reverse overflow-hidden rounded-lg bg-zinc-800/50">
-                {models.map((model) => {
-                  const value = day.totalsByModel[model] ?? 0;
-                  if (value <= 0) return null;
-                  const height = (value / maxTotal) * 100;
-                  return (
-                    <div
-                      key={`${day.date}-${model}`}
-                      className={modelColors[model]}
-                      style={{ height: `${height}%` }}
-                    />
-                  );
-                })}
-              </div>
-              <span className="text-[10px] text-zinc-500">{day.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const UsageTable = ({ perModel, modelColors }) => (
   <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
@@ -128,7 +58,7 @@ const UsageTable = ({ perModel, modelColors }) => (
                 <p className="text-sm font-semibold text-zinc-100">{model.model}</p>
               </div>
               <p className="text-sm font-bold text-emerald-400">
-                {formatNumber(model.cost, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                {formatNumber(model.cost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500">
@@ -151,7 +81,6 @@ const UsageDashboard = ({
   error,
   summary,
   perModel,
-  dailySeries,
 }) => {
   const modelColors = useMemo(() => {
     const map = {};
@@ -160,13 +89,6 @@ const UsageDashboard = ({
     });
     return map;
   }, [perModel]);
-
-  const models = useMemo(() => perModel.map((model) => model.model), [perModel]);
-  const [timeLeft, setTimeLeft] = useState(() => getTimeLeft(summary.nextEpoch));
-
-  useInterval(() => {
-    setTimeLeft(getTimeLeft(summary.nextEpoch));
-  }, summary.nextEpoch ? 1000 : null);
 
   return (
     <section className="space-y-6">
@@ -224,10 +146,12 @@ const UsageDashboard = ({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <UsageTable perModel={perModel} modelColors={modelColors} />
+
+      <div className="grid gap-4 sm:grid-cols-3">
         <SummaryCard
           label="Total cost"
-          value={formatNumber(summary.totalCost, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+          value={formatNumber(summary.totalCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           sublabel="DIEM spent"
           accent="text-emerald-400"
         />
@@ -247,17 +171,6 @@ const UsageDashboard = ({
           }
           accent="text-purple-400"
         />
-        <SummaryCard
-          label="Next epoch"
-          value={timeLeft?.label ?? '—'}
-          sublabel={summary.nextEpoch ? `Ends ${formatDateTime(summary.nextEpoch)}` : 'No epoch data'}
-          accent={timeLeft?.isExpired ? 'text-amber-400' : 'text-emerald-400'}
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        <UsageChart dailySeries={dailySeries} models={models} modelColors={modelColors} />
-        <UsageTable perModel={perModel} modelColors={modelColors} />
       </div>
     </section>
   );
