@@ -140,12 +140,6 @@ const UsageDashboard = ({
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
-
       <UsageTable perModel={perModel} modelColors={modelColors} />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -172,6 +166,12 @@ const UsageDashboard = ({
           accent="text-purple-400"
         />
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
     </section>
   );
 };
