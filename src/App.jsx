@@ -2,16 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useLocalStorage from './hooks/useLocalStorage';
 import useInterval from './hooks/useInterval';
-import { aggregateUsage, fetchBalance, fetchRateLimits, fetchUsage } from './api/venice';
+import { aggregateUsage, fetchBalance, fetchUsage } from './api/venice';
 import KeyCard from './components/KeyCard';
 import KeyForm from './components/KeyForm';
 import UsageDashboard from './components/UsageDashboard';
 
 const STORAGE_KEY = 'venice-keys';
 const AUTO_REFRESH_MS = 60_000;
-const DEFAULT_USAGE_DAYS = 7;
+const DEFAULT_USAGE_DAYS = 1;
 
 const PERIOD_OPTIONS = [
+  { label: 'Today', value: 1 },
   { label: 'Last 7 days', value: 7 },
   { label: 'Last 30 days', value: 30 },
   { label: 'Last 90 days', value: 90 },
@@ -33,7 +34,6 @@ function App() {
       totalTokens: 0,
       totalRequests: 0,
       lastUpdated: null,
-      nextEpoch: null,
     },
     perModel: [],
     dailySeries: [],
@@ -135,9 +135,6 @@ function App() {
       if (!keys.length) return;
       if (usageLoadingRef.current) return;
 
-      const primaryKey = keys[0]?.apiKey;
-      if (!primaryKey) return;
-
       usageLoadingRef.current = true;
       const periodDays = periodOverride ?? usagePeriodDays;
       setUsageState((prev) => ({
@@ -170,11 +167,6 @@ function App() {
           await sleep(150);
         }
 
-        const rateResult = await fetchRateLimits(primaryKey);
-        if (rateResult.error && !errorMessage) {
-          errorMessage = rateResult.error;
-        }
-
         const aggregated = aggregateUsage(combinedUsage);
 
         setUsageState({
@@ -182,7 +174,6 @@ function App() {
           error: errorMessage,
           summary: {
             ...aggregated.summary,
-            nextEpoch: rateResult.nextEpoch,
             fetchedRecords: combinedUsage.length,
             totalRecords,
           },
@@ -380,6 +371,16 @@ function App() {
             </div>
           ) : (
             <>
+              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                {sortedKeys.map((keyData) => (
+                  <KeyCard
+                    key={keyData.id}
+                    keyData={keyData}
+                    onEdit={handleEdit}
+                    onDelete={deleteKey}
+                  />
+                ))}
+              </div>
               <UsageDashboard
                 periodOptions={PERIOD_OPTIONS}
                 periodDays={usagePeriodDays}
@@ -389,19 +390,7 @@ function App() {
                 error={usageState.error}
                 summary={usageState.summary}
                 perModel={usageState.perModel}
-                dailySeries={usageState.dailySeries}
               />
-              <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-                {sortedKeys.map((keyData) => (
-                  <KeyCard
-                    key={keyData.id}
-                    keyData={keyData}
-                    onEdit={handleEdit}
-                    onDelete={deleteKey}
-                    onRefresh={refreshSingle}
-                  />
-                ))}
-              </div>
             </>
           )}
         </main>
