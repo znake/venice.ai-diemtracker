@@ -9,22 +9,22 @@ export async function fetchBalance(apiKey) {
     });
 
     if (response.status === 401) {
-      return { usd: null, diem: null, vcu: null, error: "Invalid API Key" };
+      return { usd: null, diem: null, error: "Invalid API Key" };
     }
 
     if (response.status === 429) {
-      return { usd: null, diem: null, vcu: null, error: "Rate limit exceeded" };
+      return { usd: null, diem: null, error: "Rate limit exceeded" };
     }
 
     if (!response.ok) {
-      return { usd: null, diem: null, vcu: null, error: `HTTP error! status: ${response.status}` };
+      return { usd: null, diem: null, error: `HTTP error! status: ${response.status}` };
     }
 
     const json = await response.json();
     const balances = json?.data?.balances;
 
     if (!balances) {
-      return { usd: null, diem: null, vcu: null, error: "No balance data in response" };
+      return { usd: null, diem: null, error: "No balance data in response" };
     }
 
     const formatBalance = (val) => val != null ? Number(val).toFixed(2) : null;
@@ -32,11 +32,10 @@ export async function fetchBalance(apiKey) {
     return {
       usd: formatBalance(balances.USD),
       diem: formatBalance(balances.DIEM),
-      vcu: formatBalance(balances.VCU),
       error: null,
     };
   } catch {
-    return { usd: null, diem: null, vcu: null, error: "Network error" };
+    return { usd: null, diem: null, error: "Network error" };
   }
 }
 
@@ -58,9 +57,9 @@ const parseModelFromSku = (sku) => {
   return model || sku;
 };
 
-const MAX_PAGES = 10;
+const MAX_PAGES = 15;
 
-export async function fetchUsage(apiKey, { currency = "DIEM", days = 7, limit = 200, maxPages = MAX_PAGES } = {}) {
+export async function fetchUsageForCurrency(apiKey, currency, { days = 7, limit = 500, maxPages = MAX_PAGES } = {}) {
   try {
     const endDate = new Date();
     const startDate = new Date();
@@ -99,7 +98,8 @@ export async function fetchUsage(apiKey, { currency = "DIEM", days = 7, limit = 
 
       const json = await response.json();
       const pageUsage = Array.isArray(json?.data) ? json.data : [];
-      allUsage.push(...pageUsage);
+      const pageUsageWithCurrency = pageUsage.map(item => ({ ...item, _fetchedCurrency: currency }));
+      allUsage.push(...pageUsageWithCurrency);
 
       if (totalRecords == null && json?.pagination?.total != null) {
         totalRecords = json.pagination.total;
@@ -118,6 +118,36 @@ export async function fetchUsage(apiKey, { currency = "DIEM", days = 7, limit = 
   } catch {
     return { usage: [], totalRecords: null, error: normalizeError(null) };
   }
+}
+
+const MULTI_CURRENCY_DELAY_MS = 300;
+
+export async function fetchUsage(apiKey, { currency = "DIEM", currencies = null, days = 7, limit = 500, maxPages = MAX_PAGES } = {}) {
+  const requestedCurrencies = currencies || [currency];
+  
+  if (requestedCurrencies.length === 1) {
+    return fetchUsageForCurrency(apiKey, requestedCurrencies[0], { days, limit, maxPages });
+  }
+
+  const allUsage = [];
+  let totalRecords = 0;
+  let firstError = null;
+
+  for (let i = 0; i < requestedCurrencies.length; i++) {
+    if (i > 0) {
+      await new Promise(r => setTimeout(r, MULTI_CURRENCY_DELAY_MS));
+    }
+    const result = await fetchUsageForCurrency(apiKey, requestedCurrencies[i], { days, limit, maxPages });
+    allUsage.push(...result.usage);
+    if (result.totalRecords != null) {
+      totalRecords += result.totalRecords;
+    }
+    if (result.error && !firstError) {
+      firstError = result.error;
+    }
+  }
+
+  return { usage: allUsage, totalRecords, error: firstError };
 }
 
 export async function fetchRateLimits(apiKey) {
@@ -146,13 +176,16 @@ export async function fetchRateLimits(apiKey) {
 export function aggregateUsage(usage = []) {
   const perModel = new Map();
   const perDay = new Map();
-  let totalCost = 0;
+  let totalCostDiem = 0;
+  let totalCostUsd = 0;
   let totalTokens = 0;
   let totalRequests = 0;
   let lastUpdated = null;
 
   usage.forEach((item) => {
     const amount = Math.abs(Number(item?.amount ?? 0));
+    const currency = item?._fetchedCurrency || item?.currency || "DIEM";
+    const isUsd = currency === "USD";
     const tokens =
       Number(item?.inferenceDetails?.promptTokens ?? 0) +
       Number(item?.inferenceDetails?.completionTokens ?? 0);
@@ -162,7 +195,11 @@ export function aggregateUsage(usage = []) {
       ? timestamp.toISOString().slice(0, 10)
       : "unknown";
 
-    totalCost += amount;
+    if (isUsd) {
+      totalCostUsd += amount;
+    } else {
+      totalCostDiem += amount;
+    }
     totalTokens += tokens;
     totalRequests += 1;
 
@@ -172,24 +209,40 @@ export function aggregateUsage(usage = []) {
 
     const modelEntry = perModel.get(model) || {
       model,
-      cost: 0,
+      costDiem: 0,
+      costUsd: 0,
       tokens: 0,
       lastUsed: null,
     };
-    modelEntry.cost += amount;
-    modelEntry.tokens += tokens;
+    if (isUsd) {
+      modelEntry.costUsd += amount;
+    } else {
+      modelEntry.costDiem += amount;
+      modelEntry.tokens += tokens;
+    }
     if (timestamp && (!modelEntry.lastUsed || timestamp > modelEntry.lastUsed)) {
       modelEntry.lastUsed = timestamp;
     }
     perModel.set(model, modelEntry);
 
-    const dayEntry = perDay.get(dateKey) || { date: dateKey, total: 0, totalsByModel: {} };
-    dayEntry.total += amount;
-    dayEntry.totalsByModel[model] = (dayEntry.totalsByModel[model] || 0) + amount;
+    const dayEntry = perDay.get(dateKey) || { date: dateKey, totalDiem: 0, totalUsd: 0, totalsByModel: {} };
+    if (isUsd) {
+      dayEntry.totalUsd += amount;
+    } else {
+      dayEntry.totalDiem += amount;
+    }
+    if (!dayEntry.totalsByModel[model]) {
+      dayEntry.totalsByModel[model] = { diem: 0, usd: 0 };
+    }
+    if (isUsd) {
+      dayEntry.totalsByModel[model].usd += amount;
+    } else {
+      dayEntry.totalsByModel[model].diem += amount;
+    }
     perDay.set(dateKey, dayEntry);
   });
 
-  const perModelSorted = Array.from(perModel.values()).sort((a, b) => b.cost - a.cost);
+  const perModelSorted = Array.from(perModel.values()).sort((a, b) => (b.costDiem + b.costUsd) - (a.costDiem + a.costUsd));
   const perDaySorted = Array.from(perDay.values())
     .filter((day) => day.date !== "unknown")
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -200,7 +253,8 @@ export function aggregateUsage(usage = []) {
 
   return {
     summary: {
-      totalCost,
+      totalCostDiem,
+      totalCostUsd,
       totalTokens,
       totalRequests,
       lastUpdated: lastUpdated ? lastUpdated.toISOString() : null,

@@ -30,9 +30,9 @@ const formatDateTime = (value) => {
 const SummaryCard = ({ label, value, sublabel, accent = 'text-emerald-400' }) => (
   <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:p-5">
     <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{label}</p>
-    <p className={`mt-2 text-2xl sm:text-3xl font-black tracking-tight ${accent}`}>
+    <div className={`mt-2 text-2xl sm:text-3xl font-black tracking-tight ${accent}`}>
       {value}
-    </p>
+    </div>
     {sublabel && (
       <p className="mt-1 text-xs text-zinc-500">{sublabel}</p>
     )}
@@ -44,7 +44,7 @@ const UsageTable = ({ perModel, modelColors }) => (
   <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
     <div className="flex items-center justify-between">
       <h3 className="text-sm font-bold text-zinc-100">Model breakdown</h3>
-      <span className="text-[11px] text-zinc-500">Cost (DIEM)</span>
+      <span className="text-[11px] text-zinc-500">Cost</span>
     </div>
     <div className="mt-4 space-y-3">
       {perModel.length === 0 ? (
@@ -57,9 +57,22 @@ const UsageTable = ({ perModel, modelColors }) => (
                 <span className={`h-2.5 w-2.5 rounded-full ${modelColors[model.model]}`} />
                 <p className="text-sm font-semibold text-zinc-100">{model.model}</p>
               </div>
-              <p className="text-sm font-bold text-emerald-400">
-                {formatNumber(model.cost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
+              <div className="flex items-center gap-2 text-sm font-bold">
+                {model.costDiem > 0 && (
+                  <span className="text-emerald-400">
+                    {formatNumber(model.costDiem, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DIEM
+                  </span>
+                )}
+                {model.costDiem > 0 && model.costUsd > 0 && <span className="text-zinc-600">/</span>}
+                {model.costUsd > 0 && (
+                  <span className="text-blue-400">
+                    {formatNumber(model.costUsd, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  </span>
+                )}
+                {model.costDiem === 0 && model.costUsd === 0 && (
+                  <span className="text-zinc-500">—</span>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500">
               <span>{formatNumber(model.tokens)} tokens</span>
@@ -76,7 +89,6 @@ const UsageDashboard = ({
   periodOptions,
   periodDays,
   onPeriodChange,
-  onRefresh,
   isLoading,
   error,
   summary,
@@ -104,7 +116,8 @@ const UsageDashboard = ({
           <select
             value={periodDays}
             onChange={(event) => onPeriodChange(Number(event.target.value))}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-200 focus:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-auto"
+            disabled={isLoading}
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-200 focus:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-auto disabled:opacity-50"
           >
             {periodOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -112,42 +125,41 @@ const UsageDashboard = ({
               </option>
             ))}
           </select>
-
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isLoading}
-            className={`inline-flex items-center justify-center gap-2 rounded-lg border min-h-[44px] px-4 py-2 text-sm font-semibold transition-all duration-200
-              ${isLoading
-                ? 'cursor-not-allowed border-white/5 bg-white/5 text-zinc-600'
-                : 'border-white/10 bg-zinc-900 text-zinc-300 hover:border-white/20 hover:bg-zinc-800 hover:text-white active:scale-95'
-              }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
-            >
-              <path
-                fillRule="evenodd"
-                d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z"
-                clipRule="evenodd"
-              />
+          {isLoading && (
+            <svg className="h-4 w-4 animate-spin text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            {isLoading ? 'Refreshing' : 'Refresh Usage'}
-          </button>
+          )}
         </div>
       </div>
 
+      <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
       <UsageTable perModel={perModel} modelColors={modelColors} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <SummaryCard
           label="Total cost"
-          value={formatNumber(summary.totalCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          sublabel="DIEM spent"
-          accent="text-emerald-400"
+          value={
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              {summary.totalCostDiem > 0 && (
+                <span className="text-emerald-400">
+                  {formatNumber(summary.totalCostDiem, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} DIEM
+                </span>
+              )}
+              {summary.totalCostDiem > 0 && summary.totalCostUsd > 0 && <span className="text-zinc-600">/</span>}
+              {summary.totalCostUsd > 0 && (
+                <span className="text-blue-400">
+                  {formatNumber(summary.totalCostUsd, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                </span>
+              )}
+              {summary.totalCostDiem === 0 && summary.totalCostUsd === 0 && (
+                <span className="text-zinc-500">—</span>
+              )}
+            </div>
+          }
+          sublabel="Cost"
+          accent="text-white"
         />
         <SummaryCard
           label="Total tokens"
@@ -165,6 +177,7 @@ const UsageDashboard = ({
           }
           accent="text-purple-400"
         />
+      </div>
       </div>
 
       {error && (

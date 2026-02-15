@@ -43,9 +43,9 @@ const KeyCard = ({ keyData, onEdit, onDelete }) => {
         </div>
       </div>
 
-      <div className="relative z-10 grid grid-cols-3 gap-2 mt-3">
+      <div className="relative z-10 grid grid-cols-2 gap-2 mt-3">
         {hasError ? (
-          <div className="col-span-3 flex items-center justify-center rounded-lg bg-red-500/5 py-2 text-xs font-medium text-red-400 border border-red-500/10">
+          <div className="col-span-2 flex items-center justify-center rounded-lg bg-red-500/5 py-2 text-xs font-medium text-red-400 border border-red-500/10">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="mr-1.5 w-3.5 h-3.5">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
@@ -64,13 +64,6 @@ const KeyCard = ({ keyData, onEdit, onDelete }) => {
               <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">DIEM</span>
               <span className={`mt-0.5 font-mono text-base font-bold tracking-tight ${isLoading ? 'animate-pulse text-zinc-700' : 'text-blue-400'}`}>
                 {isLoading ? '—' : formatValue(balance?.diem)}
-              </span>
-            </div>
-
-            <div className="flex flex-col border-l border-zinc-800/50 pl-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">VCU</span>
-              <span className={`mt-0.5 font-mono text-base font-bold tracking-tight ${isLoading ? 'animate-pulse text-zinc-700' : 'text-purple-400'}`}>
-                {isLoading ? '—' : formatValue(balance?.vcu)}
               </span>
             </div>
           </>

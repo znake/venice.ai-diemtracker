@@ -30,7 +30,8 @@ function App() {
     isLoading: false,
     error: null,
     summary: {
-      totalCost: 0,
+      totalCostDiem: 0,
+      totalCostUsd: 0,
       totalTokens: 0,
       totalRequests: 0,
       lastUpdated: null,
@@ -70,7 +71,6 @@ function App() {
                 balance: {
                   usd: k.balance?.usd ?? null,
                   diem: k.balance?.diem ?? null,
-                  vcu: k.balance?.vcu ?? null,
                   error: null,
                 },
               }
@@ -90,7 +90,6 @@ function App() {
                 balance: {
                   usd: result.usd,
                   diem: result.diem,
-                  vcu: result.vcu,
                   error: result.error,
                 },
                 lastUpdated: now,
@@ -100,32 +99,6 @@ function App() {
       );
     },
     [keys, setKeys]
-  );
-
-  const refreshAll = useCallback(async () => {
-    if (isRefreshing) return;
-    if (!keys.length) return;
-
-    setIsRefreshing(true);
-    try {
-      // Sequential refresh to keep rate limits happy.
-      // We iterate over a snapshot to avoid surprises while state changes.
-      for (const k of [...keys]) {
-        await refreshSingle(k.id, k.apiKey);
-        await sleep(150);
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [isRefreshing, keys, refreshSingle]);
-
-  useInterval(
-    () => {
-      if (isRefreshing) return;
-      if (!keys.length) return;
-      refreshAll();
-    },
-    keys.length ? AUTO_REFRESH_MS : null
   );
 
   const usageLoadingRef = useRef(false);
@@ -152,8 +125,8 @@ function App() {
           if (!key.apiKey) continue;
           const usageResult = await fetchUsage(key.apiKey, {
             days: periodDays,
-            currency: 'DIEM',
-            limit: 200,
+            currencies: ['DIEM', 'USD'],
+            limit: 500,
           });
 
           if (usageResult.error && !errorMessage) {
@@ -187,6 +160,31 @@ function App() {
     [keys, usagePeriodDays]
   );
 
+  const refreshAll = useCallback(async () => {
+    if (isRefreshing) return;
+    if (!keys.length) return;
+
+    setIsRefreshing(true);
+    try {
+      for (const k of [...keys]) {
+        await refreshSingle(k.id, k.apiKey);
+        await sleep(150);
+      }
+      await refreshUsage();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, keys, refreshSingle, refreshUsage]);
+
+  useInterval(
+    () => {
+      if (isRefreshing) return;
+      if (!keys.length) return;
+      refreshAll();
+    },
+    keys.length ? AUTO_REFRESH_MS : null
+  );
+
   // Initial refresh on mount when keys exist
   useEffect(() => {
     if (keys.length > 0) {
@@ -209,7 +207,7 @@ function App() {
         id: crypto.randomUUID(),
         label,
         apiKey,
-        balance: { usd: null, diem: null, vcu: null, error: null },
+        balance: { usd: null, diem: null, error: null },
         lastUpdated: null,
         isLoading: true,
       };
@@ -229,7 +227,6 @@ function App() {
                 balance: {
                   usd: result.usd,
                   diem: result.diem,
-                  vcu: result.vcu,
                   error: result.error,
                 },
                 lastUpdated: now,
@@ -300,7 +297,7 @@ function App() {
               Venice Balance Tracker
             </h1>
             <p className="mt-3 max-w-2xl text-sm sm:text-base text-zinc-400 leading-relaxed">
-              Track USD/DIEM/VCU balances across multiple API keys with automatic refresh.
+              Track USD/DIEM balances and usage across multiple API keys with automatic refresh.
             </p>
           </div>
 
@@ -385,7 +382,6 @@ function App() {
                 periodOptions={PERIOD_OPTIONS}
                 periodDays={usagePeriodDays}
                 onPeriodChange={setUsagePeriodDays}
-                onRefresh={() => refreshUsage(usagePeriodDays)}
                 isLoading={usageState.isLoading}
                 error={usageState.error}
                 summary={usageState.summary}
