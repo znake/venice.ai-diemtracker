@@ -8,7 +8,7 @@ import KeyForm from './components/KeyForm';
 import UsageDashboard from './components/UsageDashboard';
 
 const STORAGE_KEY = 'venice-keys';
-const AUTO_REFRESH_MS = 60_000;
+const AUTO_REFRESH_MS = 120_000;
 const DEFAULT_USAGE_DAYS = 1;
 
 const PERIOD_OPTIONS = [
