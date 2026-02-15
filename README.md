@@ -1,14 +1,15 @@
 # Venice.ai Balance Tracker
 
-A sleek, dark-themed React SPA to monitor your Venice AI API balances (USD, DIEM, VCU) across multiple API keys.
+A sleek, dark-themed React SPA to monitor your Venice AI API balances (USD, DIEM) across multiple API keys with built-in usage analytics.
 
 ![Venice Balance Tracker](https://img.shields.io/badge/React-19-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4) ![Vite](https://img.shields.io/badge/Vite-7-646CFF)
-
-![Screenshot](./public/screenshot.png)
 
 ## Features
 
 - **Multi-Key Support** - Track balances for multiple Venice API keys simultaneously
+- **Usage Dashboard** - Comprehensive analytics showing model usage, costs, and token consumption
+- **Dual Currency Display** - View costs in both DIEM and USD
+- **Period Selection** - Filter usage by Today, Last 7 days, Last 30 days, or Last 90 days
 - **Auto-Refresh** - Balances update automatically every 60 seconds
 - **Local Storage** - Keys are stored securely in your browser (never sent to any server except Venice API)
 - **Dark Theme** - Easy on the eyes with a modern zinc/emerald color scheme
@@ -18,11 +19,11 @@ A sleek, dark-themed React SPA to monitor your Venice AI API balances (USD, DIEM
 ## What is Venice.ai?
 
 [Venice.ai](https://venice.ai) is an AI platform that provides access to various language models. Users have balances in:
-- **USD** - US Dollar balance
-- **DIEM** - Venice's token currency
-- **VCU** - Venice Compute Units
 
-This tracker fetches your balances from the Venice API.
+- **USD** - US Dollar balance
+- **DIEM** - Venice's token currency (formerly VCU)
+
+This tracker fetches your balances and usage from the Venice API.
 
 ## Quick Start
 
@@ -55,6 +56,16 @@ npm run preview
 ```
 
 The built files will be in the `dist/` folder.
+
+## Screenshots
+
+### Desktop View
+
+![Desktop View](./public/desktop%20week.png)
+
+### Mobile View
+
+![Mobile View](./public/mobile%20today.png)
 
 ## Deployment
 
@@ -131,21 +142,37 @@ Once installed, the app opens in standalone mode (no browser UI) and feels like 
 
 ## Usage
 
-1. **Add an API Key**
-   - Click the "+ Add Key" button
-   - Enter a label (e.g., "Production", "Personal")
-   - Paste your Venice API key
-   - Click "Add Key"
+### 1. Add an API Key
 
-2. **View Balances**
-   - Your USD, DIEM, and VCU balances are displayed on each card
-   - Balances refresh automatically every 60 seconds
-   - Click "Refresh" on a card to update immediately
-   - Click "Refresh All" to update all keys at once
+- Click the "+ Add Key" button
+- Enter a label (e.g., "Production", "Personal")
+- Paste your Venice API key
+- Click "Add Key"
 
-3. **Manage Keys**
-   - **Edit**: Click the pencil icon to modify label or API key
-   - **Delete**: Click the trash icon to remove a key
+### 2. View Balances
+
+- Your USD and DIEM balances are displayed on each card
+- Balances refresh automatically every 60 seconds
+- Click "Refresh" on a card to update immediately
+- Click "Refresh All" to update all keys at once
+
+### 3. Manage Keys
+
+- **Edit**: Click the pencil icon to modify label or API key
+- **Delete**: Click the trash icon to remove a key
+
+### 4. Usage Dashboard
+
+The Usage Dashboard provides detailed analytics for your API usage:
+
+- **Period Selection** - Choose between Today, Last 7 days, Last 30 days, or Last 90 days
+- **Model Breakdown** - See exactly which models you're using and how much each costs
+- **Cost Display** - View costs in both DIEM and USD side by side
+- **Token Tracking** - Monitor prompt and completion tokens per model
+- **Request Count** - Track total number of API requests
+- **Last Updated** - See when data was last refreshed
+
+The dashboard shows aggregated usage across all your API keys, making it easy to understand your overall consumption patterns.
 
 ## How It Works
 
