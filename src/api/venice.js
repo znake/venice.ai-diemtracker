@@ -64,7 +64,12 @@ export async function fetchUsage(apiKey, { currency = "DIEM", days = 7, limit = 
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(endDate.getDate() - days);
+
+    if (days === 1) {
+      startDate.setHours(0, 0, 0, 0);
+    } else {
+      startDate.setDate(endDate.getDate() - days);
+    }
 
     const allUsage = [];
     let page = 1;
