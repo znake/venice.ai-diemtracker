@@ -20,6 +20,14 @@ const PERIOD_OPTIONS = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const chunk = (items, size) => {
+  const groups = [];
+  for (let i = 0; i < items.length; i += size) {
+    groups.push(items.slice(i, i + size));
+  }
+  return groups;
+};
+
 function App() {
   const [keys, setKeys] = useLocalStorage(STORAGE_KEY, []);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -121,23 +129,35 @@ function App() {
         let errorMessage = null;
         let totalRecords = 0;
 
-        for (const key of keys) {
-          if (!key.apiKey) continue;
-          const usageResult = await fetchUsage(key.apiKey, {
-            days: periodDays,
-            currencies: ['DIEM', 'USD'],
-            limit: 500,
+        const keyGroups = chunk(keys.filter((key) => key.apiKey), 3);
+
+        for (let index = 0; index < keyGroups.length; index += 1) {
+          const group = keyGroups[index];
+          const results = await Promise.all(
+            group.map((key) =>
+              fetchUsage(key.apiKey, {
+                days: periodDays,
+                currencies: ['DIEM', 'USD'],
+                limit: 500,
+              })
+            )
+          );
+
+          results.forEach((usageResult, resultIndex) => {
+            const key = group[resultIndex];
+            if (usageResult.error && !errorMessage) {
+              errorMessage = `${key?.label || 'Key'}: ${usageResult.error}`;
+            }
+
+            combinedUsage.push(...usageResult.usage);
+            if (usageResult.totalRecords != null) {
+              totalRecords += usageResult.totalRecords;
+            }
           });
 
-          if (usageResult.error && !errorMessage) {
-            errorMessage = `${key.label || 'Key'}: ${usageResult.error}`;
+          if (index < keyGroups.length - 1) {
+            await sleep(150);
           }
-
-          combinedUsage.push(...usageResult.usage);
-          if (usageResult.totalRecords != null) {
-            totalRecords += usageResult.totalRecords;
-          }
-          await sleep(150);
         }
 
         const aggregated = aggregateUsage(combinedUsage);

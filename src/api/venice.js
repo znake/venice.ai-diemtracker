@@ -122,22 +122,28 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, limit 
 
 const MULTI_CURRENCY_DELAY_MS = 300;
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function fetchUsage(apiKey, { currency = "DIEM", currencies = null, days = 7, limit = 500, maxPages = MAX_PAGES } = {}) {
   const requestedCurrencies = currencies || [currency];
-  
+
   if (requestedCurrencies.length === 1) {
     return fetchUsageForCurrency(apiKey, requestedCurrencies[0], { days, limit, maxPages });
   }
 
+  const tasks = requestedCurrencies.map((requestedCurrency, index) => (async () => {
+    if (index > 0) {
+      await sleep(MULTI_CURRENCY_DELAY_MS * index);
+    }
+    return fetchUsageForCurrency(apiKey, requestedCurrency, { days, limit, maxPages });
+  })());
+
+  const results = await Promise.all(tasks);
   const allUsage = [];
   let totalRecords = 0;
   let firstError = null;
 
-  for (let i = 0; i < requestedCurrencies.length; i++) {
-    if (i > 0) {
-      await new Promise(r => setTimeout(r, MULTI_CURRENCY_DELAY_MS));
-    }
-    const result = await fetchUsageForCurrency(apiKey, requestedCurrencies[i], { days, limit, maxPages });
+  results.forEach((result) => {
     allUsage.push(...result.usage);
     if (result.totalRecords != null) {
       totalRecords += result.totalRecords;
@@ -145,7 +151,7 @@ export async function fetchUsage(apiKey, { currency = "DIEM", currencies = null,
     if (result.error && !firstError) {
       firstError = result.error;
     }
-  }
+  });
 
   return { usage: allUsage, totalRecords, error: firstError };
 }
