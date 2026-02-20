@@ -182,6 +182,7 @@ export async function fetchRateLimits(apiKey) {
 export function aggregateUsage(usage = []) {
   const perModel = new Map();
   const perDay = new Map();
+  const seenRequestIds = new Set();
   let totalCostDiem = 0;
   let totalCostUsd = 0;
   let totalTokens = 0;
@@ -200,6 +201,7 @@ export function aggregateUsage(usage = []) {
     const dateKey = timestamp && !Number.isNaN(timestamp.getTime())
       ? timestamp.toISOString().slice(0, 10)
       : "unknown";
+    const requestId = item?.inferenceDetails?.requestId;
 
     if (isUsd) {
       totalCostUsd += amount;
@@ -207,7 +209,15 @@ export function aggregateUsage(usage = []) {
       totalCostDiem += amount;
     }
     totalTokens += tokens;
-    totalRequests += 1;
+
+    if (requestId) {
+      if (!seenRequestIds.has(requestId)) {
+        seenRequestIds.add(requestId);
+        totalRequests += 1;
+      }
+    } else {
+      totalRequests += 1;
+    }
 
     if (timestamp && (!lastUpdated || timestamp > lastUpdated)) {
       lastUpdated = timestamp;
@@ -224,8 +234,8 @@ export function aggregateUsage(usage = []) {
       modelEntry.costUsd += amount;
     } else {
       modelEntry.costDiem += amount;
-      modelEntry.tokens += tokens;
     }
+    modelEntry.tokens += tokens;
     if (timestamp && (!modelEntry.lastUsed || timestamp > modelEntry.lastUsed)) {
       modelEntry.lastUsed = timestamp;
     }
