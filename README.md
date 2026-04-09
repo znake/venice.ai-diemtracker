@@ -10,7 +10,10 @@ A sleek, dark-themed React SPA to monitor your Venice AI API balances (USD, DIEM
 - **Usage Dashboard** - Comprehensive analytics showing model usage, costs, and token consumption
 - **Dual Currency Display** - View costs in both DIEM and USD
 - **Period Selection** - Filter usage by Today, Last 7 days, Last 30 days, or Last 90 days
-- **Auto-Refresh** - Balances update automatically every 60 seconds
+- **Wallet & API Key Filtering** - Group keys by wallet, filter the dashboard by wallet or individual key
+- **API Key Breakdown** - See per-API-key consumption via the Venice analytics endpoint
+- **Expandable Model Details** - Click a model to see per-wallet cost breakdown and the API keys in each wallet
+- **Auto-Refresh** - Balances update automatically every 5 minutes
 - **Local Storage** - Keys are stored securely in your browser (never sent to any server except Venice API)
 - **Dark Theme** - Easy on the eyes with a modern zinc/emerald color scheme
 - **Responsive Design** - Works on desktop, tablet, and mobile
@@ -147,12 +150,13 @@ Once installed, the app opens in standalone mode (no browser UI) and feels like 
 - Click the "+ Add Key" button
 - Enter a label (e.g., "Production", "Personal")
 - Paste your Venice API key
+- Optionally assign a **Wallet / Group** label to organize keys by account
 - Click "Add Key"
 
 ### 2. View Balances
 
 - Your USD and DIEM balances are displayed on each card
-- Balances refresh automatically every 60 seconds
+- Balances refresh automatically every 5 minutes
 - Click "Refresh" on a card to update immediately
 - Click "Refresh All" to update all keys at once
 
@@ -166,13 +170,15 @@ Once installed, the app opens in standalone mode (no browser UI) and feels like 
 The Usage Dashboard provides detailed analytics for your API usage:
 
 - **Period Selection** - Choose between Today, Last 7 days, Last 30 days, or Last 90 days
-- **Model Breakdown** - See exactly which models you're using and how much each costs
+- **Model Breakdown** - See exactly which models you're using and how much each costs. Click a model to expand its per-wallet breakdown and see the API keys in each wallet.
+- **API Key Breakdown** - A dedicated table showing per-API-key consumption (fetched from the Venice analytics endpoint), grouped by wallet
+- **Wallet & Key Filters** - Filter the entire dashboard by wallet or individual configured key
 - **Cost Display** - View costs in both DIEM and USD side by side
-- **Token Tracking** - Monitor prompt and completion tokens per model
+- **Token Tracking** - Monitor prompt and completion tokens per model and per API key
 - **Request Count** - Track total number of API requests
 - **Last Updated** - See when data was last refreshed
 
-The dashboard shows aggregated usage across all your API keys, making it easy to understand your overall consumption patterns.
+The dashboard aggregates usage across all your configured API keys. Use wallet labels to group keys by account and quickly filter between them.
 
 ## How It Works
 

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
-const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
+const KeyForm = ({ onSubmit, initialData = null, onCancel, existingWallets = [] }) => {
   const [label, setLabel] = useState(initialData?.label || '');
   const [apiKey, setApiKey] = useState(initialData?.apiKey || '');
+  const [wallet, setWallet] = useState(initialData?.wallet || '');
   const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,11 +16,12 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
       return;
     }
 
-    onSubmit({ label, apiKey });
-    
+    onSubmit({ label, apiKey, wallet: wallet.trim() });
+
     if (!initialData) {
       setLabel('');
       setApiKey('');
+      setWallet('');
     }
   };
 
@@ -79,6 +81,28 @@ const KeyForm = ({ onSubmit, initialData = null, onCancel }) => {
               )}
             </button>
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="wallet" className="block text-xs font-mono text-zinc-500 uppercase tracking-wider">
+            Wallet / Group <span className="normal-case text-zinc-600">(optional)</span>
+          </label>
+          <input
+            type="text"
+            id="wallet"
+            value={wallet}
+            onChange={(e) => setWallet(e.target.value)}
+            list="wallet-suggestions"
+            className="w-full bg-zinc-950 border border-zinc-800 text-zinc-200 px-4 py-3.5 rounded-lg focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200 placeholder-zinc-700"
+            placeholder="e.g. Main Wallet, Team Budget"
+          />
+          {existingWallets.length > 0 && (
+            <datalist id="wallet-suggestions">
+              {existingWallets.map((w) => (
+                <option key={w} value={w} />
+              ))}
+            </datalist>
+          )}
         </div>
 
         {error && (

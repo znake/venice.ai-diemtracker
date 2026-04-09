@@ -48,7 +48,7 @@ const normalizeError = (status, fallback) => {
   return fallback || "Network error";
 };
 
-const parseModelFromSku = (sku) => {
+export const parseModelFromSku = (sku) => {
   if (!sku || typeof sku !== "string") return "Unknown";
   if (sku.includes("-llm-")) return sku.split("-llm-")[0];
   if (sku.includes("-image-")) return sku.split("-image-")[0];
@@ -176,6 +176,39 @@ export async function fetchRateLimits(apiKey) {
     return { balances, nextEpoch, error: null };
   } catch {
     return { balances: null, nextEpoch: null, error: normalizeError(null) };
+  }
+}
+
+export async function fetchUsageAnalytics(apiKey, { days = 7 } = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (days === 1) {
+      const today = new Date().toISOString().slice(0, 10);
+      params.set("startDate", today);
+      params.set("endDate", today);
+    } else {
+      params.set("lookback", `${days}d`);
+    }
+
+    const response = await fetch(`${VENICE_BASE_URL}/billing/usage-analytics?${params}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return { byKey: [], error: normalizeError(response.status) };
+    }
+
+    const json = await response.json();
+    return {
+      byKey: Array.isArray(json?.byKey) ? json.byKey : [],
+      error: null,
+    };
+  } catch {
+    return { byKey: [], error: normalizeError(null) };
   }
 }
 

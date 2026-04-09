@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useLocalStorage from './hooks/useLocalStorage';
 import useInterval from './hooks/useInterval';
-import { aggregateUsage, fetchBalance, fetchUsage } from './api/venice';
+import { aggregateUsage, fetchBalance, fetchUsage, fetchUsageAnalytics } from './api/venice';
 import KeyCard from './components/KeyCard';
 import KeyForm from './components/KeyForm';
 import UsageDashboard from './components/UsageDashboard';
 
 const STORAGE_KEY = 'venice-keys';
-const AUTO_REFRESH_MS = 120_000;
+const AUTO_REFRESH_MS = 300_000;
 const DEFAULT_USAGE_DAYS = 1;
 
 const PERIOD_OPTIONS = [
@@ -34,21 +34,44 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
   const [usagePeriodDays, setUsagePeriodDays] = useState(DEFAULT_USAGE_DAYS);
-  const [usageState, setUsageState] = useState({
-    isLoading: false,
-    error: null,
-    summary: {
-      totalCostDiem: 0,
-      totalCostUsd: 0,
-      totalTokens: 0,
-      totalRequests: 0,
-      lastUpdated: null,
-    },
-    perModel: [],
-    dailySeries: [],
-  });
+  const [rawUsage, setRawUsage] = useState([]);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageError, setUsageError] = useState(null);
+  const [usageTotalRecords, setUsageTotalRecords] = useState(0);
+  const [filterKeyId, setFilterKeyId] = useState('all');
+  const [filterWallet, setFilterWallet] = useState('all');
+  const [analyticsKeyBreakdown, setAnalyticsKeyBreakdown] = useState([]);
 
   const isFormOpen = showForm || !!editingKey;
+
+  const walletOptions = useMemo(() => {
+    const wallets = [...new Set(keys.map((k) => k.wallet).filter(Boolean))];
+    return wallets.sort();
+  }, [keys]);
+
+  const filteredUsageData = useMemo(() => {
+    let filtered = rawUsage;
+    if (filterKeyId !== 'all') {
+      filtered = filtered.filter((r) => r._sourceKeyId === filterKeyId);
+    }
+    if (filterWallet !== 'all') {
+      const walletKeyIds = new Set(
+        keys.filter((k) => k.wallet === filterWallet).map((k) => k.id)
+      );
+      filtered = filtered.filter((r) => walletKeyIds.has(r._sourceKeyId));
+    }
+    const aggregated = aggregateUsage(filtered);
+    return {
+      filteredRaw: filtered,
+      summary: {
+        ...aggregated.summary,
+        fetchedRecords: filtered.length,
+        totalRecords: filterKeyId === 'all' && filterWallet === 'all' ? usageTotalRecords : filtered.length,
+      },
+      perModel: aggregated.perModel,
+      dailySeries: aggregated.dailySeries,
+    };
+  }, [rawUsage, filterKeyId, filterWallet, keys, usageTotalRecords]);
 
   const sortedKeys = useMemo(() => {
     // Keep UI stable/predictable; users typically expect latest updated first.
@@ -118,11 +141,8 @@ function App() {
 
       usageLoadingRef.current = true;
       const periodDays = periodOverride ?? usagePeriodDays;
-      setUsageState((prev) => ({
-        ...prev,
-        isLoading: true,
-        error: null,
-      }));
+      setUsageLoading(true);
+      setUsageError(null);
 
       try {
         const combinedUsage = [];
@@ -149,7 +169,13 @@ function App() {
               errorMessage = `${key?.label || 'Key'}: ${usageResult.error}`;
             }
 
-            combinedUsage.push(...usageResult.usage);
+            combinedUsage.push(
+              ...usageResult.usage.map((r) => ({
+                ...r,
+                _sourceKeyId: key.id,
+                _sourceKeyLabel: key.label,
+              }))
+            );
             if (usageResult.totalRecords != null) {
               totalRecords += usageResult.totalRecords;
             }
@@ -160,20 +186,44 @@ function App() {
           }
         }
 
-        const aggregated = aggregateUsage(combinedUsage);
+        setRawUsage(combinedUsage);
+        setUsageTotalRecords(totalRecords);
+        setUsageError(errorMessage);
 
-        setUsageState({
-          isLoading: false,
-          error: errorMessage,
-          summary: {
-            ...aggregated.summary,
-            fetchedRecords: combinedUsage.length,
-            totalRecords,
-          },
-          perModel: aggregated.perModel,
-          dailySeries: aggregated.dailySeries,
+        // Fetch analytics for per-API-key breakdown.
+        // One call per unique wallet (keys from the same wallet return the same data).
+        const seenWallets = new Set();
+        const analyticsKeys = [];
+        keys.filter((k) => k.apiKey).forEach((k) => {
+          const walletId = k.wallet || k.id;
+          if (!seenWallets.has(walletId)) {
+            seenWallets.add(walletId);
+            analyticsKeys.push(k);
+          }
         });
+
+        const allByKey = new Map();
+        for (const k of analyticsKeys) {
+          const result = await fetchUsageAnalytics(k.apiKey, { days: periodDays });
+          if (result.byKey) {
+            result.byKey.forEach((entry) => {
+              if (entry.apiKeyId && !allByKey.has(entry.apiKeyId)) {
+                allByKey.set(entry.apiKeyId, {
+                  ...entry,
+                  _wallet: k.wallet || k.label,
+                });
+              }
+            });
+          }
+        }
+
+        setAnalyticsKeyBreakdown(
+          Array.from(allByKey.values()).sort(
+            (a, b) => ((b.totalDiem ?? 0) + (b.totalUsd ?? 0)) - ((a.totalDiem ?? 0) + (a.totalUsd ?? 0))
+          )
+        );
       } finally {
+        setUsageLoading(false);
         usageLoadingRef.current = false;
       }
     },
@@ -221,12 +271,23 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys.length, usagePeriodDays]);
 
+  // Reset filters if the selected key/wallet no longer exists
+  useEffect(() => {
+    if (filterKeyId !== 'all' && !keys.some((k) => k.id === filterKeyId)) {
+      setFilterKeyId('all');
+    }
+    if (filterWallet !== 'all' && !keys.some((k) => k.wallet === filterWallet)) {
+      setFilterWallet('all');
+    }
+  }, [keys, filterKeyId, filterWallet]);
+
   const addKey = useCallback(
-    async ({ label, apiKey }) => {
+    async ({ label, apiKey, wallet }) => {
       const newKey = {
         id: crypto.randomUUID(),
         label,
         apiKey,
+        wallet: wallet || '',
         balance: { usd: null, diem: null, error: null },
         lastUpdated: null,
         isLoading: true,
@@ -259,7 +320,7 @@ function App() {
   );
 
   const updateKey = useCallback(
-    async (id, { label, apiKey }) => {
+    async (id, { label, apiKey, wallet }) => {
       setKeys((prev) =>
         prev.map((k) =>
           k.id === id
@@ -267,6 +328,7 @@ function App() {
                 ...k,
                 label,
                 apiKey,
+                wallet: wallet || '',
               }
             : k
         )
@@ -402,10 +464,18 @@ function App() {
                 periodOptions={PERIOD_OPTIONS}
                 periodDays={usagePeriodDays}
                 onPeriodChange={setUsagePeriodDays}
-                isLoading={usageState.isLoading}
-                error={usageState.error}
-                summary={usageState.summary}
-                perModel={usageState.perModel}
+                keys={keys.map(({ id, label, wallet }) => ({ id, label, wallet }))}
+                walletOptions={walletOptions}
+                filterKeyId={filterKeyId}
+                onFilterKeyChange={setFilterKeyId}
+                filterWallet={filterWallet}
+                onFilterWalletChange={setFilterWallet}
+                isLoading={usageLoading}
+                error={usageError}
+                summary={filteredUsageData.summary}
+                perModel={filteredUsageData.perModel}
+                filteredRaw={filteredUsageData.filteredRaw}
+                analyticsKeyBreakdown={analyticsKeyBreakdown}
               />
             </>
           )}
@@ -426,6 +496,7 @@ function App() {
               initialData={editingKey}
               onSubmit={handleFormSubmit}
               onCancel={resetFormState}
+              existingWallets={walletOptions}
             />
           </div>
         </div>

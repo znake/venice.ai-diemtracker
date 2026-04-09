@@ -18,6 +18,11 @@ const KeyCard = ({ keyData, onEdit, onDelete }) => {
         <div className="flex items-center gap-2 min-w-0">
           <h3 className="text-sm font-bold tracking-tight text-zinc-100 truncate">{label}</h3>
           <span className="font-mono text-[10px] text-zinc-500 shrink-0">{maskedKey}</span>
+          {keyData.wallet && (
+            <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400 shrink-0 truncate max-w-[100px]">
+              {keyData.wallet}
+            </span>
+          )}
         </div>
 
         <div className="flex gap-0.5 shrink-0">
