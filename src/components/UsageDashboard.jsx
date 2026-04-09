@@ -87,7 +87,7 @@ const buildModelWalletBreakdown = (filteredRaw, keys, modelName) => {
   );
 };
 
-const ModelExpanded = ({ filteredRaw, keys, modelName, analyticsKeyBreakdown }) => {
+const ModelExpanded = ({ filteredRaw, keys, modelName }) => {
   const walletBreakdown = useMemo(
     () => buildModelWalletBreakdown(filteredRaw, keys, modelName),
     [filteredRaw, keys, modelName]
@@ -98,61 +98,26 @@ const ModelExpanded = ({ filteredRaw, keys, modelName, analyticsKeyBreakdown }) 
   }
 
   return (
-    <div className="mt-1 space-y-3 border-t border-zinc-800/50 pt-3">
-      {walletBreakdown.map((wallet) => {
-        // Find analytics keys for this wallet
-        const walletAnalyticsKeys = analyticsKeyBreakdown.filter((k) => k._wallet === wallet.wallet);
-
-        return (
-          <div key={wallet.wallet} className="space-y-2">
-            <div className="flex items-center justify-between rounded-lg bg-zinc-900/60 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5 text-zinc-400">
-                  <path fillRule="evenodd" d="M2 4.25A2.25 2.25 0 0 1 4.25 2h7.5A2.25 2.25 0 0 1 14 4.25v.636a.75.75 0 0 1-.149.596l-.042.048A2.25 2.25 0 0 0 14 7.75v3A2.25 2.25 0 0 1 11.75 13h-7.5A2.25 2.25 0 0 1 2 10.75v-6.5Zm10.5 3.5a.75.75 0 0 0-.75.75v.5a.75.75 0 0 0 1.5 0v-.5a.75.75 0 0 0-.75-.75Z" clipRule="evenodd" />
-                </svg>
-                <span className="text-xs font-bold text-zinc-200">{wallet.wallet}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <CostDisplay diem={wallet.costDiem} usd={wallet.costUsd} className="text-xs font-semibold" />
-                <span className="text-[10px] text-zinc-500">{formatNumber(wallet.tokens)} tok</span>
-              </div>
-            </div>
-
-            {walletAnalyticsKeys.length > 0 && (
-              <div className="pl-4 border-l border-zinc-800/50 ml-2 space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 mb-1">API Keys in this wallet</p>
-                {walletAnalyticsKeys.map((apiKey) => (
-                  <div key={apiKey.apiKeyId} className="flex items-center justify-between px-2 py-1.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 text-zinc-500 shrink-0">
-                        <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5c0 1.193.6 2.248 1.51 2.876L4.076 9.31a.75.75 0 1 0 1.06 1.06l.22-.219.53.53a.75.75 0 0 0 1.061 0l.72-.72a.75.75 0 0 0 0-1.06l-.53-.53 1.795-1.795A3.502 3.502 0 0 0 8 1Zm-.5 3.5a.5.5 0 1 1 1 0 .5.5 0 0 1-1 0Z" clipRule="evenodd" />
-                      </svg>
-                      <span className="text-xs font-medium text-zinc-300 truncate">
-                        {apiKey.description || apiKey.apiKeyId}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs font-semibold text-emerald-400">
-                        {formatNumber(apiKey.totalDiem ?? 0, costFormat)}
-                      </span>
-                      <span className="text-xs font-semibold text-blue-400">
-                        ${formatNumber(apiKey.totalUsd ?? 0, costFormat)}
-                      </span>
-                      <span className="text-[10px] text-zinc-500">{formatNumber(apiKey.totalUnits ?? 0)} tok</span>
-                      <span className="text-[10px] text-zinc-600">total</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+    <div className="mt-1 space-y-2 border-t border-zinc-800/50 pt-3">
+      {walletBreakdown.map((wallet) => (
+        <div key={wallet.wallet} className="flex items-center justify-between rounded-lg bg-zinc-900/60 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5 text-zinc-400">
+              <path fillRule="evenodd" d="M2 4.25A2.25 2.25 0 0 1 4.25 2h7.5A2.25 2.25 0 0 1 14 4.25v.636a.75.75 0 0 1-.149.596l-.042.048A2.25 2.25 0 0 0 14 7.75v3A2.25 2.25 0 0 1 11.75 13h-7.5A2.25 2.25 0 0 1 2 10.75v-6.5Zm10.5 3.5a.75.75 0 0 0-.75.75v.5a.75.75 0 0 0 1.5 0v-.5a.75.75 0 0 0-.75-.75Z" clipRule="evenodd" />
+            </svg>
+            <span className="text-xs font-bold text-zinc-200">{wallet.wallet}</span>
           </div>
-        );
-      })}
+          <div className="flex items-center gap-3">
+            <CostDisplay diem={wallet.costDiem} usd={wallet.costUsd} className="text-xs font-semibold" />
+            <span className="text-[10px] text-zinc-500">{formatNumber(wallet.tokens)} tok</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
 
-const UsageTable = ({ perModel, modelColors, filteredRaw, keys, analyticsKeyBreakdown }) => {
+const UsageTable = ({ perModel, modelColors, filteredRaw, keys }) => {
   const [expandedModel, setExpandedModel] = useState(null);
 
   return (
@@ -200,7 +165,6 @@ const UsageTable = ({ perModel, modelColors, filteredRaw, keys, analyticsKeyBrea
                       filteredRaw={filteredRaw}
                       keys={keys}
                       modelName={model.model}
-                      analyticsKeyBreakdown={analyticsKeyBreakdown}
                     />
                   </div>
                 )}
@@ -396,7 +360,7 @@ const UsageDashboard = ({
       </div>
 
       <div className={`space-y-6 transition-opacity duration-300 ${isLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-      <UsageTable perModel={perModel} modelColors={modelColors} filteredRaw={filteredRaw} keys={keys} analyticsKeyBreakdown={analyticsKeyBreakdown} />
+      <UsageTable perModel={perModel} modelColors={modelColors} filteredRaw={filteredRaw} keys={keys} />
 
       {analyticsKeyBreakdown.length > 0 && (
         <ApiKeyTable analyticsKeyBreakdown={analyticsKeyBreakdown} filterWallet={filterWallet} />
