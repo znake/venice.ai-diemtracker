@@ -158,7 +158,6 @@ function App() {
               fetchUsage(key.apiKey, {
                 days: periodDays,
                 currencies: ['DIEM', 'USD'],
-                limit: 500,
               })
             )
           );

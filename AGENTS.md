@@ -147,7 +147,7 @@ src/
 - **Authentication**: Bearer token in `Authorization` header
 - **Rate Limits**: Handle 429 responses gracefully
 - **Balance Endpoint**: `/api_keys/rate_limits`
-- **Usage Endpoint**: `/billing/usage` (paginated, no API key attribution per record)
+- **Usage Endpoint**: `/billing/usage-history` (cursor-paginated via `nextCursor`, no API key attribution per record; the legacy `/billing/usage` endpoint is deprecated and capped at 1 req/min)
 - **Analytics Endpoint**: `/billing/usage-analytics` (aggregated, provides `byKey` breakdown with `apiKeyId`, `description`, `totalDiem`, `totalUsd`, `totalUnits`)
 
 ---

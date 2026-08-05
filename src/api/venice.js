@@ -59,7 +59,7 @@ export const parseModelFromSku = (sku) => {
 
 const MAX_PAGES = 15;
 
-export async function fetchUsageForCurrency(apiKey, currency, { days = 7, limit = 500, maxPages = MAX_PAGES } = {}) {
+export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSize = 1000, maxPages = MAX_PAGES } = {}) {
   try {
     const endDate = new Date();
     const startDate = new Date();
@@ -71,20 +71,23 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, limit 
     }
 
     const allUsage = [];
-    let page = 1;
-    let hasMore = true;
-    let totalRecords = null;
+    let cursor = null;
+    let page = 0;
 
-    while (hasMore && page <= maxPages) {
-      const params = new URLSearchParams({
-        currency,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: String(limit),
-        page: String(page),
-      });
+    do {
+      page += 1;
+      const params = new URLSearchParams();
+      if (cursor) {
+        // Continuation requests send the cursor only; the filters travel inside it.
+        params.set("cursor", cursor);
+      } else {
+        params.set("currency", currency);
+        params.set("startTimestamp", startDate.toISOString());
+        params.set("endTimestamp", endDate.toISOString());
+        params.set("pageSize", String(pageSize));
+      }
 
-      const response = await fetch(`${VENICE_BASE_URL}/billing/usage?${params.toString()}`, {
+      const response = await fetch(`${VENICE_BASE_URL}/billing/usage-history?${params.toString()}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
@@ -101,20 +104,11 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, limit 
       const pageUsageWithCurrency = pageUsage.map(item => ({ ...item, _fetchedCurrency: currency }));
       allUsage.push(...pageUsageWithCurrency);
 
-      if (totalRecords == null && json?.pagination?.total != null) {
-        totalRecords = json.pagination.total;
-      }
+      cursor = typeof json?.nextCursor === "string" && json.nextCursor ? json.nextCursor : null;
+    } while (cursor && page < maxPages);
 
-      const totalPages = json?.pagination?.totalPages;
-      if (totalPages != null) {
-        hasMore = page < totalPages;
-      } else {
-        hasMore = pageUsage.length === limit;
-      }
-      page += 1;
-    }
-
-    return { usage: allUsage, totalRecords, error: null };
+    // usage-history reports no result totals, so totalRecords stays null.
+    return { usage: allUsage, totalRecords: null, error: null };
   } catch {
     return { usage: [], totalRecords: null, error: normalizeError(null) };
   }
@@ -124,18 +118,18 @@ const MULTI_CURRENCY_DELAY_MS = 300;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function fetchUsage(apiKey, { currency = "DIEM", currencies = null, days = 7, limit = 500, maxPages = MAX_PAGES } = {}) {
+export async function fetchUsage(apiKey, { currency = "DIEM", currencies = null, days = 7, pageSize = 1000, maxPages = MAX_PAGES } = {}) {
   const requestedCurrencies = currencies || [currency];
 
   if (requestedCurrencies.length === 1) {
-    return fetchUsageForCurrency(apiKey, requestedCurrencies[0], { days, limit, maxPages });
+    return fetchUsageForCurrency(apiKey, requestedCurrencies[0], { days, pageSize, maxPages });
   }
 
   const tasks = requestedCurrencies.map((requestedCurrency, index) => (async () => {
     if (index > 0) {
       await sleep(MULTI_CURRENCY_DELAY_MS * index);
     }
-    return fetchUsageForCurrency(apiKey, requestedCurrency, { days, limit, maxPages });
+    return fetchUsageForCurrency(apiKey, requestedCurrency, { days, pageSize, maxPages });
   })());
 
   const results = await Promise.all(tasks);
