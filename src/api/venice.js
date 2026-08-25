@@ -58,8 +58,10 @@ export const parseModelFromSku = (sku) => {
 };
 
 const MAX_PAGES = 15;
+const RETRY_DELAYS_MS = [750, 1500];
 
 export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSize = 1000, maxPages = MAX_PAGES } = {}) {
+  const allUsage = [];
   try {
     const endDate = new Date();
     const startDate = new Date();
@@ -70,7 +72,6 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSi
       startDate.setDate(endDate.getDate() - days);
     }
 
-    const allUsage = [];
     let cursor = null;
     let page = 0;
 
@@ -87,16 +88,30 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSi
         params.set("pageSize", String(pageSize));
       }
 
-      const response = await fetch(`${VENICE_BASE_URL}/billing/usage-history?${params.toString()}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-      });
+      let response = null;
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+          response = await fetch(`${VENICE_BASE_URL}/billing/usage-history?${params.toString()}`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+          });
+        } catch {
+          response = null;
+        }
+        const retryable = response === null || (response.status >= 500 && response.status <= 599);
+        if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
+        await sleep(RETRY_DELAYS_MS[attempt]);
+      }
 
-      if (!response.ok) {
-        return { usage: [], totalRecords: null, error: normalizeError(response.status) };
+      if (response === null || !response.ok) {
+        const error = normalizeError(response ? response.status : null);
+        if (allUsage.length > 0) {
+          return { usage: allUsage, totalRecords: null, error: `${error} (showing partial data)` };
+        }
+        return { usage: [], totalRecords: null, error };
       }
 
       const json = await response.json();
@@ -110,6 +125,9 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSi
     // usage-history reports no result totals, so totalRecords stays null.
     return { usage: allUsage, totalRecords: null, error: null };
   } catch {
+    if (allUsage.length > 0) {
+      return { usage: allUsage, totalRecords: null, error: `${normalizeError(null)} (showing partial data)` };
+    }
     return { usage: [], totalRecords: null, error: normalizeError(null) };
   }
 }
