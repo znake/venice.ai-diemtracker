@@ -32,7 +32,7 @@ This tracker fetches your balances and usage from the Venice API.
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 20.19+ / 22.12+ (Vite 7 requirement)
 - npm or bun
 
 ### Installation
@@ -157,7 +157,6 @@ Once installed, the app opens in standalone mode (no browser UI) and feels like 
 
 - Your USD and DIEM balances are displayed on each card
 - Balances refresh automatically every 5 minutes
-- Click "Refresh" on a card to update immediately
 - Click "Refresh All" to update all keys at once
 
 ### 3. Manage Keys
