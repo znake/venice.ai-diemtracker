@@ -58,9 +58,12 @@ export const parseModelFromSku = (sku) => {
 };
 
 const MAX_PAGES = 15;
+// Retry 5xx briefly per page, then abort pagination for this currency —
+// retrying the SAME cursor repeatedly just burns ~2.3s on a page that will
+// 500 again (Venice backend occasionally serves broken cursor pages).
 const RETRY_DELAYS_MS = [750, 1500];
 
-export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSize = 1000, maxPages = MAX_PAGES } = {}) {
+export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSize = 1000, maxPages = MAX_PAGES, onPage = null } = {}) {
   const allUsage = [];
   try {
     const endDate = new Date();
@@ -119,6 +122,12 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSi
       const pageUsageWithCurrency = pageUsage.map(item => ({ ...item, _fetchedCurrency: currency }));
       allUsage.push(...pageUsageWithCurrency);
 
+      // Progressive rendering: hand each finished page to the caller so the
+      // dashboard can fill up while later pages are still loading.
+      if (onPage !== null && pageUsageWithCurrency.length > 0) {
+        onPage(pageUsageWithCurrency);
+      }
+
       cursor = typeof json?.nextCursor === "string" && json.nextCursor ? json.nextCursor : null;
     } while (cursor && page < maxPages);
 
@@ -136,18 +145,21 @@ const MULTI_CURRENCY_DELAY_MS = 300;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function fetchUsage(apiKey, { currency = "DIEM", currencies = null, days = 7, pageSize = 1000, maxPages = MAX_PAGES } = {}) {
+export async function fetchUsage(apiKey, { currency = "DIEM", currencies = null, days = 7, pageSize = 1000, maxPages = MAX_PAGES, onPage = null } = {}) {
   const requestedCurrencies = currencies || [currency];
 
   if (requestedCurrencies.length === 1) {
-    return fetchUsageForCurrency(apiKey, requestedCurrencies[0], { days, pageSize, maxPages });
+    return fetchUsageForCurrency(apiKey, requestedCurrencies[0], { days, pageSize, maxPages, onPage });
   }
 
+  // Currencies are independent requests — fetch them in PARALLEL. A small
+  // stagger keeps the burst size identical to the old sequential behavior's
+  // steady state (2 concurrent), while cutting total wall time roughly in half.
   const tasks = requestedCurrencies.map((requestedCurrency, index) => (async () => {
     if (index > 0) {
       await sleep(MULTI_CURRENCY_DELAY_MS * index);
     }
-    return fetchUsageForCurrency(apiKey, requestedCurrency, { days, pageSize, maxPages });
+    return fetchUsageForCurrency(apiKey, requestedCurrency, { days, pageSize, maxPages, onPage });
   })());
 
   const results = await Promise.all(tasks);

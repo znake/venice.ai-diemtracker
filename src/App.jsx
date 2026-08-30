@@ -37,7 +37,6 @@ function App() {
   const [rawUsage, setRawUsage] = useState([]);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState(null);
-  const [usageTotalRecords, setUsageTotalRecords] = useState(0);
   const [filterKeyId, setFilterKeyId] = useState('all');
   const [filterWallet, setFilterWallet] = useState('all');
   const [analyticsKeyBreakdown, setAnalyticsKeyBreakdown] = useState([]);
@@ -66,12 +65,12 @@ function App() {
       summary: {
         ...aggregated.summary,
         fetchedRecords: filtered.length,
-        totalRecords: filterKeyId === 'all' && filterWallet === 'all' ? usageTotalRecords : filtered.length,
+        totalRecords: filtered.length,
       },
       perModel: aggregated.perModel,
       dailySeries: aggregated.dailySeries,
     };
-  }, [rawUsage, filterKeyId, filterWallet, keys, usageTotalRecords]);
+  }, [rawUsage, filterKeyId, filterWallet, keys]);
 
   const sortedKeys = useMemo(() => {
     // Keep UI stable/predictable; users typically expect latest updated first.
@@ -143,11 +142,29 @@ function App() {
       const periodDays = periodOverride ?? usagePeriodDays;
       setUsageLoading(true);
       setUsageError(null);
+      // Progressive rendering: start from an empty list and append each
+      // finished page, so the dashboard fills up WHILE the rest loads
+      // instead of staying blank for minutes.
+      setRawUsage([]);
 
       try {
-        const combinedUsage = [];
         let errorMessage = null;
-        let totalRecords = 0;
+        // Dedupe across concurrent page streams (2 currencies + N keys run in
+        // parallel). Records without a requestId can't be deduped and pass through.
+        const seenRequestIds = new Set();
+
+        const mergeUsage = (pageRecords) => {
+          const deduped = pageRecords.filter((r) => {
+            const requestId = r?.inferenceDetails?.requestId;
+            if (!requestId) return true;
+            if (seenRequestIds.has(requestId)) return false;
+            seenRequestIds.add(requestId);
+            return true;
+          });
+          if (deduped.length > 0) {
+            setRawUsage((prev) => [...prev, ...deduped]);
+          }
+        };
 
         const keyGroups = chunk(keys.filter((key) => key.apiKey), 3);
 
@@ -158,6 +175,13 @@ function App() {
               fetchUsage(key.apiKey, {
                 days: periodDays,
                 currencies: ['DIEM', 'USD'],
+                onPage: (pageRecords) => mergeUsage(
+                  pageRecords.map((r) => ({
+                    ...r,
+                    _sourceKeyId: key.id,
+                    _sourceKeyLabel: key.label,
+                  }))
+                ),
               })
             )
           );
@@ -167,17 +191,6 @@ function App() {
             if (usageResult.error && !errorMessage) {
               errorMessage = `${key?.label || 'Key'}: ${usageResult.error}`;
             }
-
-            combinedUsage.push(
-              ...usageResult.usage.map((r) => ({
-                ...r,
-                _sourceKeyId: key.id,
-                _sourceKeyLabel: key.label,
-              }))
-            );
-            if (usageResult.totalRecords != null) {
-              totalRecords += usageResult.totalRecords;
-            }
           });
 
           if (index < keyGroups.length - 1) {
@@ -185,12 +198,11 @@ function App() {
           }
         }
 
-        setRawUsage(combinedUsage);
-        setUsageTotalRecords(totalRecords);
         setUsageError(errorMessage);
 
         // Fetch analytics for per-API-key breakdown.
         // One call per unique wallet (keys from the same wallet return the same data).
+        // Wallets are independent — fetch in parallel instead of serially.
         const seenWallets = new Set();
         const analyticsKeys = [];
         keys.filter((k) => k.apiKey).forEach((k) => {
@@ -201,9 +213,13 @@ function App() {
           }
         });
 
+        const analyticsResults = await Promise.all(
+          analyticsKeys.map((k) => fetchUsageAnalytics(k.apiKey, { days: periodDays }))
+        );
+
         const allByKey = new Map();
-        for (const k of analyticsKeys) {
-          const result = await fetchUsageAnalytics(k.apiKey, { days: periodDays });
+        analyticsResults.forEach((result, resultIndex) => {
+          const k = analyticsKeys[resultIndex];
           if (result.byKey) {
             result.byKey.forEach((entry) => {
               if (entry.apiKeyId && !allByKey.has(entry.apiKeyId)) {
@@ -214,7 +230,7 @@ function App() {
               }
             });
           }
-        }
+        });
 
         setAnalyticsKeyBreakdown(
           Array.from(allByKey.values()).sort(
