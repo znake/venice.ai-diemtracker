@@ -61,6 +61,8 @@ const MAX_PAGES = 15;
 // Retry 5xx briefly per page, then abort pagination for this currency —
 // retrying the SAME cursor repeatedly just burns ~2.3s on a page that will
 // 500 again (Venice backend occasionally serves broken cursor pages).
+// NOTE: hard upper bound so a permanently broken cursor can never wedge
+// a refresh into an infinite retry loop.
 const RETRY_DELAYS_MS = [750, 1500];
 
 export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSize = 1000, maxPages = MAX_PAGES, onPage = null } = {}) {
