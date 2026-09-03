@@ -58,12 +58,15 @@ export const parseModelFromSku = (sku) => {
 };
 
 const MAX_PAGES = 15;
-// Retry 5xx briefly per page, then abort pagination for this walk —
-// retrying the SAME cursor repeatedly just burns ~2.3s on a page that will
-// 500 again (Venice backend occasionally serves broken cursor pages).
-// NOTE: hard upper bound so a permanently broken cursor can never wedge
-// a refresh into an infinite retry loop.
+// Retry 5xx on FIRST pages only. Continuation (cursor) pages are NEVER
+// retried: Venice occasionally serves permanently broken cursors whose 500s
+// take ~30s server-side each (measured in production), so retrying the same
+// cursor twice stalls a whole refresh by ~90s. One failing page just ends
+// its window with partial data — the other windows keep loading.
 const RETRY_DELAYS_MS = [750, 1500];
+// Cap each request so a wedged 500ing backend request costs seconds, not the
+// observed ~30s before Venice's own timeout responds.
+const REQUEST_TIMEOUT_MS = 20_000;
 
 // Cursor walks are strictly serial per range: each page's cursor is opaque
 // and only obtainable from the previous response (~2-3s per page server-side).
@@ -75,7 +78,7 @@ const RETRY_DELAYS_MS = [750, 1500];
 const PAGINATION_WINDOWS = 4;
 const WINDOW_STAGGER_MS = 120;
 
-const walkUsageWindow = async (apiKey, currency, { startTimestamp, endTimestamp, pageSize, maxPages, onPage }) => {
+const walkUsageWindow = async (apiKey, currency, { startTimestamp, endTimestamp, pageSize, maxPages, onPage, fetchTimeoutMs = REQUEST_TIMEOUT_MS }) => {
   const allUsage = [];
   let cursor = null;
   let page = 0;
@@ -93,8 +96,14 @@ const walkUsageWindow = async (apiKey, currency, { startTimestamp, endTimestamp,
         params.set("pageSize", String(pageSize));
       }
 
+      const isContinuation = cursor !== null;
+      const attempts = isContinuation ? 1 : RETRY_DELAYS_MS.length + 1;
+
       let response = null;
-      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+      let timedOut = false;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), fetchTimeoutMs);
         try {
           response = await fetch(`${VENICE_BASE_URL}/billing/usage-history?${params.toString()}`, {
             method: "GET",
@@ -102,12 +111,20 @@ const walkUsageWindow = async (apiKey, currency, { startTimestamp, endTimestamp,
               "Authorization": `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
+            signal: controller.signal,
           });
         } catch {
           response = null;
+          // A timeout abort means the request already burned fetchTimeoutMs —
+          // retrying just doubles the stall. Only FAST failures retry.
+          timedOut = controller.signal.aborted;
+        } finally {
+          clearTimeout(timeoutId);
         }
-        const retryable = response === null || (response.status >= 500 && response.status <= 599);
-        if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
+        const serverError = response !== null && response.status >= 500 && response.status <= 599;
+        // Only fast network failures retry; 5xx responses and timeout aborts
+        // always end the walk immediately.
+        if (serverError || timedOut || response !== null || attempt === attempts - 1) break;
         await sleep(RETRY_DELAYS_MS[attempt]);
       }
 
@@ -192,8 +209,11 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSi
     }
   });
 
-  // When any window failed but others delivered data, surface the partial-data marker.
-  const finalError = firstError && allUsage.length > 0 ? `${firstError} (showing partial data)` : firstError;
+  // When any window failed but others delivered data, surface the partial-data
+  // marker (deduped — the failing walk may already have appended it).
+  const finalError = firstError && allUsage.length > 0 && !firstError.includes('(showing partial data)')
+    ? `${firstError} (showing partial data)`
+    : firstError;
 
   return { usage: allUsage, totalRecords: null, error: finalError };
 }
