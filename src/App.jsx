@@ -50,14 +50,16 @@ function App() {
 
   const filteredUsageData = useMemo(() => {
     let filtered = rawUsage;
+    // Usage-history records carry no per-key attribution, so each wallet's
+    // records are tagged with one representative key (_sourceKeyId). Filtering
+    // by any key of a wallet resolves to that wallet's records.
     if (filterKeyId !== 'all') {
-      filtered = filtered.filter((r) => r._sourceKeyId === filterKeyId);
+      const selectedKey = keys.find((k) => k.id === filterKeyId);
+      const selectedWalletId = selectedKey ? (selectedKey.wallet || selectedKey.id) : null;
+      filtered = filtered.filter((r) => r._sourceWalletId === selectedWalletId);
     }
     if (filterWallet !== 'all') {
-      const walletKeyIds = new Set(
-        keys.filter((k) => k.wallet === filterWallet).map((k) => k.id)
-      );
-      filtered = filtered.filter((r) => walletKeyIds.has(r._sourceKeyId));
+      filtered = filtered.filter((r) => r._sourceWalletId === filterWallet);
     }
     const aggregated = aggregateUsage(filtered);
     return {
@@ -166,7 +168,58 @@ function App() {
           }
         };
 
-        const keyGroups = chunk(keys.filter((key) => key.apiKey), 3);
+        // Fetch analytics for per-API-key breakdown.
+        // One call per unique wallet (keys from the same wallet return the same data).
+        // Independent of the usage walks below — start it in parallel here and
+        // only await the result after the usage loop finishes.
+        const analyticsPromise = (async () => {
+          const seenAnalyticsWallets = new Set();
+          const analyticsKeys = [];
+          keys.filter((k) => k.apiKey).forEach((k) => {
+            const walletId = k.wallet || k.id;
+            if (!seenAnalyticsWallets.has(walletId)) {
+              seenAnalyticsWallets.add(walletId);
+              analyticsKeys.push(k);
+            }
+          });
+
+          const analyticsResults = await Promise.all(
+            analyticsKeys.map((k) => fetchUsageAnalytics(k.apiKey, { days: periodDays }))
+          );
+
+          const allByKey = new Map();
+          analyticsResults.forEach((result, resultIndex) => {
+            const k = analyticsKeys[resultIndex];
+            if (result.byKey) {
+              result.byKey.forEach((entry) => {
+                if (entry.apiKeyId && !allByKey.has(entry.apiKeyId)) {
+                  allByKey.set(entry.apiKeyId, {
+                    ...entry,
+                    _wallet: k.wallet || k.label,
+                  });
+                }
+              });
+            }
+          });
+
+          return Array.from(allByKey.values()).sort(
+            (a, b) => ((b.totalDiem ?? 0) + (b.totalUsd ?? 0)) - ((a.totalDiem ?? 0) + (a.totalUsd ?? 0))
+          );
+        })();
+
+        // usage-history is account-level: the API has no per-key filter, returns
+        // identical cursors/data for every key of the same account, and records
+        // carry no key attribution. One walk set per wallet is therefore enough —
+        // the first key of each wallet acts as representative.
+        const usageKeys = keys.filter((key) => key.apiKey);
+        const seenUsageWallets = new Set();
+        const walletRepresentatives = usageKeys.filter((key) => {
+          const walletId = key.wallet || key.id;
+          if (seenUsageWallets.has(walletId)) return false;
+          seenUsageWallets.add(walletId);
+          return true;
+        });
+        const keyGroups = chunk(walletRepresentatives, 3);
 
         for (let index = 0; index < keyGroups.length; index += 1) {
           const group = keyGroups[index];
@@ -180,6 +233,7 @@ function App() {
                     ...r,
                     _sourceKeyId: key.id,
                     _sourceKeyLabel: key.label,
+                    _sourceWalletId: key.wallet || key.id,
                   }))
                 ),
               })
@@ -199,44 +253,7 @@ function App() {
         }
 
         setUsageError(errorMessage);
-
-        // Fetch analytics for per-API-key breakdown.
-        // One call per unique wallet (keys from the same wallet return the same data).
-        // Wallets are independent — fetch in parallel instead of serially.
-        const seenWallets = new Set();
-        const analyticsKeys = [];
-        keys.filter((k) => k.apiKey).forEach((k) => {
-          const walletId = k.wallet || k.id;
-          if (!seenWallets.has(walletId)) {
-            seenWallets.add(walletId);
-            analyticsKeys.push(k);
-          }
-        });
-
-        const analyticsResults = await Promise.all(
-          analyticsKeys.map((k) => fetchUsageAnalytics(k.apiKey, { days: periodDays }))
-        );
-
-        const allByKey = new Map();
-        analyticsResults.forEach((result, resultIndex) => {
-          const k = analyticsKeys[resultIndex];
-          if (result.byKey) {
-            result.byKey.forEach((entry) => {
-              if (entry.apiKeyId && !allByKey.has(entry.apiKeyId)) {
-                allByKey.set(entry.apiKeyId, {
-                  ...entry,
-                  _wallet: k.wallet || k.label,
-                });
-              }
-            });
-          }
-        });
-
-        setAnalyticsKeyBreakdown(
-          Array.from(allByKey.values()).sort(
-            (a, b) => ((b.totalDiem ?? 0) + (b.totalUsd ?? 0)) - ((a.totalDiem ?? 0) + (a.totalUsd ?? 0))
-          )
-        );
+        setAnalyticsKeyBreakdown(await analyticsPromise);
       } finally {
         setUsageLoading(false);
         usageLoadingRef.current = false;
@@ -251,9 +268,15 @@ function App() {
 
     setIsRefreshing(true);
     try {
-      for (const k of [...keys]) {
-        await refreshSingle(k.id, k.apiKey);
-        await sleep(150);
+      // Balances are single cheap calls — refresh in parallel groups of 3.
+      const balanceGroups = chunk([...keys], 3);
+      for (let index = 0; index < balanceGroups.length; index += 1) {
+        await Promise.all(
+          balanceGroups[index].map((k) => refreshSingle(k.id, k.apiKey))
+        );
+        if (index < balanceGroups.length - 1) {
+          await sleep(150);
+        }
       }
       await refreshUsage();
     } finally {

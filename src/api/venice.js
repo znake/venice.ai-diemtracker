@@ -58,28 +58,28 @@ export const parseModelFromSku = (sku) => {
 };
 
 const MAX_PAGES = 15;
-// Retry 5xx briefly per page, then abort pagination for this currency —
+// Retry 5xx briefly per page, then abort pagination for this walk —
 // retrying the SAME cursor repeatedly just burns ~2.3s on a page that will
 // 500 again (Venice backend occasionally serves broken cursor pages).
 // NOTE: hard upper bound so a permanently broken cursor can never wedge
 // a refresh into an infinite retry loop.
 const RETRY_DELAYS_MS = [750, 1500];
 
-export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSize = 1000, maxPages = MAX_PAGES, onPage = null } = {}) {
+// Cursor walks are strictly serial per range: each page's cursor is opaque
+// and only obtainable from the previous response (~2-3s per page server-side).
+// To cut wall time, the period is split into equal timestamp windows that are
+// walked IN PARALLEL. The API contract for /billing/usage-history treats
+// endTimestamp as exclusive and startTimestamp as inclusive, so adjacent
+// windows sharing a boundary tile the period without gaps or overlaps.
+// maxPages applies per window, so total page capacity grows accordingly.
+const PAGINATION_WINDOWS = 4;
+const WINDOW_STAGGER_MS = 120;
+
+const walkUsageWindow = async (apiKey, currency, { startTimestamp, endTimestamp, pageSize, maxPages, onPage }) => {
   const allUsage = [];
+  let cursor = null;
+  let page = 0;
   try {
-    const endDate = new Date();
-    const startDate = new Date();
-
-    if (days === 1) {
-      startDate.setHours(0, 0, 0, 0);
-    } else {
-      startDate.setDate(endDate.getDate() - days);
-    }
-
-    let cursor = null;
-    let page = 0;
-
     do {
       page += 1;
       const params = new URLSearchParams();
@@ -88,8 +88,8 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSi
         params.set("cursor", cursor);
       } else {
         params.set("currency", currency);
-        params.set("startTimestamp", startDate.toISOString());
-        params.set("endTimestamp", endDate.toISOString());
+        params.set("startTimestamp", startTimestamp);
+        params.set("endTimestamp", endTimestamp);
         params.set("pageSize", String(pageSize));
       }
 
@@ -141,6 +141,61 @@ export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSi
     }
     return { usage: [], totalRecords: null, error: normalizeError(null) };
   }
+};
+
+export async function fetchUsageForCurrency(apiKey, currency, { days = 7, pageSize = 1000, maxPages = MAX_PAGES, onPage = null } = {}) {
+  const endDate = new Date();
+  const startDate = new Date();
+
+  if (days === 1) {
+    startDate.setHours(0, 0, 0, 0);
+  } else {
+    startDate.setDate(endDate.getDate() - days);
+  }
+
+  // Equal slices sharing boundaries; the last window ends exactly at the
+  // period end (endTimestamp is exclusive, startTimestamp inclusive).
+  const rangeMs = endDate.getTime() - startDate.getTime();
+  const windowMs = Math.max(1, Math.floor(rangeMs / PAGINATION_WINDOWS));
+  const windows = [];
+  for (let index = 0; index < PAGINATION_WINDOWS; index += 1) {
+    const windowStart = new Date(startDate.getTime() + windowMs * index);
+    const windowEnd = index === PAGINATION_WINDOWS - 1
+      ? endDate
+      : new Date(startDate.getTime() + windowMs * (index + 1));
+    windows.push({ startTimestamp: windowStart.toISOString(), endTimestamp: windowEnd.toISOString() });
+  }
+
+  // Windows are independent first pages — walk them in parallel. A small
+  // stagger keeps the request burst shaped like the old serial steady state.
+  const tasks = windows.map((window, index) => (async () => {
+    if (index > 0) {
+      await sleep(WINDOW_STAGGER_MS * index);
+    }
+    return walkUsageWindow(apiKey, currency, {
+      startTimestamp: window.startTimestamp,
+      endTimestamp: window.endTimestamp,
+      pageSize,
+      maxPages,
+      onPage,
+    });
+  })());
+
+  const results = await Promise.all(tasks);
+  const allUsage = [];
+  let firstError = null;
+
+  results.forEach((result) => {
+    allUsage.push(...result.usage);
+    if (result.error && !firstError) {
+      firstError = result.error;
+    }
+  });
+
+  // When any window failed but others delivered data, surface the partial-data marker.
+  const finalError = firstError && allUsage.length > 0 ? `${firstError} (showing partial data)` : firstError;
+
+  return { usage: allUsage, totalRecords: null, error: finalError };
 }
 
 const MULTI_CURRENCY_DELAY_MS = 300;
