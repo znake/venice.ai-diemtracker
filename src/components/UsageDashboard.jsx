@@ -61,7 +61,9 @@ const SummaryCard = ({ label, value, sublabel, accent = 'text-emerald-400' }) =>
 const buildModelWalletBreakdown = (filteredRaw, keys, modelName) => {
   const keyMap = new Map(keys.map((k) => [k.id, k]));
   const perWallet = new Map();
-
+  // Same inference records share identical token counts (see aggregateUsage),
+  // so tokens count once per requestId while costs sum every record.
+  const seenTokenRequestIds = new Set();
   filteredRaw.forEach((item) => {
     if (parseModelFromSku(item?.sku) !== modelName) return;
     const keyId = item._sourceKeyId;
@@ -76,9 +78,16 @@ const buildModelWalletBreakdown = (filteredRaw, keys, modelName) => {
     } else {
       entry.costDiem += amount;
     }
-    entry.tokens +=
-      Number(item?.inferenceDetails?.promptTokens ?? 0) +
-      Number(item?.inferenceDetails?.completionTokens ?? 0);
+    const requestId = item?.inferenceDetails?.requestId;
+    const isTokenCounted = !requestId || !seenTokenRequestIds.has(requestId);
+    if (requestId && isTokenCounted) {
+      seenTokenRequestIds.add(requestId);
+    }
+    if (isTokenCounted) {
+      entry.tokens +=
+        Number(item?.inferenceDetails?.promptTokens ?? 0) +
+        Number(item?.inferenceDetails?.completionTokens ?? 0);
+    }
     perWallet.set(walletName, entry);
   });
 

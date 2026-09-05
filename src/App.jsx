@@ -152,15 +152,20 @@ function App() {
       try {
         let errorMessage = null;
         // Dedupe across concurrent page streams (2 currencies + N keys run in
-        // parallel). Records without a requestId can't be deduped and pass through.
-        const seenRequestIds = new Set();
+        // parallel). KEY DETAIL: one inference produces MULTIPLE usage records
+        // (input / cache-input / output token types) that share one requestId,
+        // so the dedupe key must be requestId+sku. Deduping by requestId alone
+        // silently drops ~2/3 of the records and understates every total.
+        // Records without a requestId can't be deduped and pass through.
+        const seenRecordKeys = new Set();
 
         const mergeUsage = (pageRecords) => {
           const deduped = pageRecords.filter((r) => {
             const requestId = r?.inferenceDetails?.requestId;
             if (!requestId) return true;
-            if (seenRequestIds.has(requestId)) return false;
-            seenRequestIds.add(requestId);
+            const recordKey = `${requestId}:${r?.sku ?? ''}`;
+            if (seenRecordKeys.has(recordKey)) return false;
+            seenRecordKeys.add(recordKey);
             return true;
           });
           if (deduped.length > 0) {

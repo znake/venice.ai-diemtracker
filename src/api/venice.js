@@ -317,6 +317,10 @@ export function aggregateUsage(usage = []) {
   const perModel = new Map();
   const perDay = new Map();
   const seenRequestIds = new Set();
+  // One inference emits up to 3 usage records (input / cache-input / output
+  // token types) that each carry IDENTICAL inferenceDetails token counts.
+  // Costs must sum across all records, but tokens count once per requestId.
+  const seenTokenRequestIds = new Set();
   let totalCostDiem = 0;
   let totalCostUsd = 0;
   let totalTokens = 0;
@@ -342,8 +346,6 @@ export function aggregateUsage(usage = []) {
     } else {
       totalCostDiem += amount;
     }
-    totalTokens += tokens;
-
     if (requestId) {
       if (!seenRequestIds.has(requestId)) {
         seenRequestIds.add(requestId);
@@ -351,6 +353,14 @@ export function aggregateUsage(usage = []) {
       }
     } else {
       totalRequests += 1;
+    }
+
+    const isTokenCounted = !requestId || !seenTokenRequestIds.has(requestId);
+    if (requestId && isTokenCounted) {
+      seenTokenRequestIds.add(requestId);
+    }
+    if (isTokenCounted) {
+      totalTokens += tokens;
     }
 
     if (timestamp && (!lastUpdated || timestamp > lastUpdated)) {
@@ -369,7 +379,9 @@ export function aggregateUsage(usage = []) {
     } else {
       modelEntry.costDiem += amount;
     }
-    modelEntry.tokens += tokens;
+    if (isTokenCounted) {
+      modelEntry.tokens += tokens;
+    }
     if (timestamp && (!modelEntry.lastUsed || timestamp > modelEntry.lastUsed)) {
       modelEntry.lastUsed = timestamp;
     }
