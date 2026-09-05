@@ -128,6 +128,19 @@ const ModelExpanded = ({ filteredRaw, keys, modelName }) => {
 
 const UsageTable = ({ perModel, modelColors, filteredRaw, keys }) => {
   const [expandedModel, setExpandedModel] = useState(null);
+  const [copiedModel, setCopiedModel] = useState(null);
+
+  const copyModelName = async (modelName) => {
+    try {
+      await navigator.clipboard.writeText(modelName);
+      setCopiedModel(modelName);
+      setTimeout(() => {
+        setCopiedModel((current) => (current === modelName ? null : current));
+      }, 1500);
+    } catch {
+      // Clipboard unavailable (e.g. insecure context) — no feedback needed
+    }
+  };
 
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
@@ -159,7 +172,19 @@ const UsageTable = ({ perModel, modelColors, filteredRaw, keys }) => {
                         <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
                       </svg>
                       <span className={`h-2.5 w-2.5 rounded-full ${modelColors[model.model]}`} />
-                      <p className="text-sm font-semibold text-zinc-100">{model.model}</p>
+                      <span
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          copyModelName(model.model);
+                        }}
+                        className="cursor-pointer text-sm font-semibold text-zinc-100 transition-colors hover:text-emerald-400"
+                        title="Click to copy model name"
+                      >
+                        {model.model}
+                      </span>
+                      {copiedModel === model.model && (
+                        <span className="text-[11px] font-semibold text-emerald-400">Copied</span>
+                      )}
                     </div>
                     <CostDisplay diem={model.costDiem} usd={model.costUsd} />
                   </div>
